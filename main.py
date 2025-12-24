@@ -9,7 +9,6 @@ from fastapi.templating import Jinja2Templates
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
 GEN_LIMIT = 30
-AUTH_COOKIE = "auth"
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -19,15 +18,17 @@ templates = Jinja2Templates(directory="templates")
 # =====================
 links = {}
 stats = {"generated": 0}
+active_tokens = set()
 
 # =====================
-# АВТОРИЗАЦИЯ
+# ПРОВЕРКА АВТОРИЗАЦИИ
 # =====================
 def is_logged_in(request: Request) -> bool:
-    return request.cookies.get(AUTH_COOKIE) == "ok"
+    token = request.query_params.get("auth")
+    return token in active_tokens
 
 # =====================
-# LOGIN (GET + POST)
+# LOGIN
 # =====================
 @app.api_route("/login", methods=["GET", "POST"], response_class=HTMLResponse)
 def login(
@@ -35,38 +36,28 @@ def login(
     username: str = Form(None),
     password: str = Form(None),
 ):
-    # POST — проверка логина
     if request.method == "POST":
         if username == ADMIN_USER and password == ADMIN_PASS:
-            response = RedirectResponse("/", status_code=302)
-            response.set_cookie(
-    AUTH_COOKIE,
-    "ok",
-    httponly=True,
-    samesite="lax",
-    secure=True,
-    path="/"
-)
-            return response
+            token = secrets.token_urlsafe(16)
+            active_tokens.add(token)
+            return RedirectResponse(f"/?auth={token}", status_code=302)
 
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": "Неверный логин или пароль"}
         )
 
-    # GET — показать форму
-    return templates.TemplateResponse(
-        "login.html",
-        {"request": request}
-    )
+    return templates.TemplateResponse("login.html", {"request": request})
 
 # =====================
-# HOME (GET + POST)
+# HOME
 # =====================
 @app.api_route("/", methods=["GET", "POST"], response_class=HTMLResponse)
 def home(request: Request):
     if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
+
+    auth = request.query_params.get("auth")
 
     return templates.TemplateResponse(
         "index.html",
@@ -76,7 +67,8 @@ def home(request: Request):
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - stats["generated"],
             "link": None,
-            "target_url": ""
+            "target_url": "",
+            "auth": auth
         }
     )
 
@@ -84,8 +76,12 @@ def home(request: Request):
 # CREATE LINK
 # =====================
 @app.post("/create", response_class=HTMLResponse)
-def create(request: Request, target_url: str = Form(...)):
-    if not is_logged_in(request):
+def create(
+    request: Request,
+    target_url: str = Form(...),
+    auth: str = Form(...)
+):
+    if auth not in active_tokens:
         return RedirectResponse("/login", status_code=302)
 
     if stats["generated"] >= GEN_LIMIT:
@@ -106,7 +102,8 @@ def create(request: Request, target_url: str = Form(...)):
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - stats["generated"],
             "link": link,
-            "target_url": target_url
+            "target_url": target_url,
+            "auth": auth
         }
     )
 
@@ -120,7 +117,6 @@ def open_link(code: str):
 
     links[code]["opens"] += 1
 
-    # 1-й заход — защита от предпросмотра
     if links[code]["opens"] == 1:
         return HTMLResponse("⏳ Ссылка активирована. Откройте её ещё раз.")
 
