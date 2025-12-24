@@ -17,12 +17,12 @@
             background: white;
             padding: 30px;
             border-radius: 10px;
-            width: 320px;
+            width: 360px;
             box-shadow: 0 10px 30px rgba(0,0,0,.1);
-            text-align: center;
         }
         h2 {
-            margin-bottom: 20px;
+            margin-top: 0;
+            text-align: center;
         }
         input {
             width: 100%;
@@ -30,7 +30,6 @@
             margin-bottom: 12px;
             border-radius: 6px;
             border: 1px solid #ccc;
-            font-size: 14px;
         }
         button {
             width: 100%;
@@ -42,17 +41,24 @@
             font-size: 15px;
             cursor: pointer;
         }
-        button:hover {
-            background: #4338ca;
+        .error {
+            color: red;
+            text-align: center;
+            margin-bottom: 10px;
         }
     </style>
 </head>
 <body>
 
 <div class="box">
-    <h2>Вход в систему</h2>
+    <h2>Вход</h2>
+
+    {% if error %}
+    <div class="error">{{ error }}</div>
+    {% endif %}
+
     <form method="post" action="/login">
-        <input name="username" placeholder="Логин" required>
+        <input type="text" name="username" placeholder="Логин" required>
         <input type="password" name="password" placeholder="Пароль" required>
         <button type="submit">Войти</button>
     </form>
