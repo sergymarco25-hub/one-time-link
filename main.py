@@ -1,7 +1,6 @@
 import secrets
-from fastapi import FastAPI, Request, Form, Depends, HTTPException, status
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from fastapi.templating import Jinja2Templates
 
 # =====================
@@ -9,9 +8,7 @@ from fastapi.templating import Jinja2Templates
 # =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
-GEN_LIMIT = 30000
-
-security = HTTPBasic()
+GEN_LIMIT = 30
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -21,26 +18,56 @@ templates = Jinja2Templates(directory="templates")
 # =====================
 links = {}
 stats = {"generated": 0}
+sessions = set()  # активные сессии
 
 # =====================
-# AUTH CHECK
+# УТИЛИТЫ
 # =====================
-def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
-    correct_user = secrets.compare_digest(credentials.username, ADMIN_USER)
-    correct_pass = secrets.compare_digest(credentials.password, ADMIN_PASS)
+def get_session_id(request: Request):
+    return request.cookies.get("session_id")
 
-    if not (correct_user and correct_pass):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Unauthorized",
-            headers={"WWW-Authenticate": "Basic"},
+def is_logged_in(request: Request):
+    sid = get_session_id(request)
+    return sid in sessions
+
+# =====================
+# LOGIN
+# =====================
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
+
+@app.post("/login", response_class=HTMLResponse)
+def login_action(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...)
+):
+    if username == ADMIN_USER and password == ADMIN_PASS:
+        sid = secrets.token_urlsafe(16)
+        sessions.add(sid)
+        response = RedirectResponse("/", status_code=302)
+        response.set_cookie(
+            "session_id",
+            sid,
+            httponly=True,
+            samesite="lax"
         )
+        return response
+
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": "Неверный логин или пароль"}
+    )
 
 # =====================
 # HOME
 # =====================
 @app.get("/", response_class=HTMLResponse)
-def home(request: Request, auth=Depends(check_auth)):
+def home(request: Request):
+    if not is_logged_in(request):
+        return RedirectResponse("/login", status_code=302)
+
     return templates.TemplateResponse(
         "index.html",
         {
@@ -57,11 +84,10 @@ def home(request: Request, auth=Depends(check_auth)):
 # CREATE LINK
 # =====================
 @app.post("/create", response_class=HTMLResponse)
-def create(
-    request: Request,
-    target_url: str = Form(...),
-    auth=Depends(check_auth)
-):
+def create(request: Request, target_url: str = Form(...)):
+    if not is_logged_in(request):
+        return RedirectResponse("/login", status_code=302)
+
     if stats["generated"] >= GEN_LIMIT:
         return HTMLResponse("❌ Лимит генераций исчерпан", status_code=403)
 
@@ -94,7 +120,7 @@ def open_link(code: str):
 
     links[code]["opens"] += 1
 
-    # первый заход — защита от предпросмотра
+    # защита от предпросмотра
     if links[code]["opens"] == 1:
         return HTMLResponse("⏳ Ссылка активирована. Откройте её ещё раз.")
 
