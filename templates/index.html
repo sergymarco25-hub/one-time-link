@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Одноразовая ссылка</title>
+</head>
+<body>
+
+<h2>Генератор одноразовых ссылок</h2>
+
+<form method="post" action="/create">
+    <input type="url" name="target_url" placeholder="https://example.com" required style="width:300px;">
+    <br><br>
+    <button type="submit">Сгенерировать</button>
+</form>
+
+{% if link %}
+<hr>
+<p>Ваша ссылка:</p>
+<p>
+    <a href="{{ link }}" target="_blank">{{ link }}</a>
+</p>
+{% endif %}
+
+</body>
+</html>
