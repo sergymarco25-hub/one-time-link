@@ -31,19 +31,20 @@ def require_login(request: Request):
         return RedirectResponse("/login", status_code=302)
 
 # =====================
-# LOGIN
+# LOGIN (GET + POST)
 # =====================
-@app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
+@app.api_route("/login", methods=["GET", "POST"], response_class=HTMLResponse)
+def login(request: Request, username: str = Form(None), password: str = Form(None)):
+    # если POST — проверяем логин
+    if request.method == "POST":
+        if username == ADMIN_USER and password == ADMIN_PASS:
+            response = RedirectResponse("/", status_code=302)
+            response.set_cookie(AUTH_COOKIE, "ok", httponly=True)
+            return response
+        return HTMLResponse("❌ Неверный логин или пароль", status_code=401)
 
-@app.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
-    if username == ADMIN_USER and password == ADMIN_PASS:
-        response = RedirectResponse("/", status_code=302)
-        response.set_cookie(AUTH_COOKIE, "ok", httponly=True)
-        return response
-    return HTMLResponse("❌ Неверный логин или пароль", status_code=401)
+    # если GET — просто показываем форму
+    return templates.TemplateResponse("login.html", {"request": request})
 
 # =====================
 # HOME
