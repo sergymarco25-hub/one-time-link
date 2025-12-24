@@ -1,10 +1,116 @@
-<form method="post" action="/create">
-    <input
-        type="url"
-        name="target_url"
-        placeholder="https://example.com"
-        value="{{ target_url }}"
-        required
-    >
-    <button type="submit">Сгенерировать ссылку</button>
-</form>
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Одноразовые ссылки</title>
+    <style>
+        body {
+            background: #f4f6f8;
+            font-family: Arial, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .box {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            width: 420px;
+            box-shadow: 0 10px 30px rgba(0,0,0,.1);
+        }
+        h2 {
+            margin-top: 0;
+            text-align: center;
+        }
+        .stats {
+            font-size: 14px;
+            color: #555;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            margin-bottom: 12px;
+            font-size: 14px;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 6px;
+            background: #4f46e5;
+            color: white;
+            font-size: 15px;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #4338ca;
+        }
+        .result {
+            background: #eef;
+            padding: 12px;
+            margin-top: 16px;
+            border-radius: 6px;
+            word-break: break-all;
+            text-align: center;
+        }
+        .copy-btn {
+            margin-top: 8px;
+            background: #10b981;
+        }
+        .copy-btn:hover {
+            background: #059669;
+        }
+        a {
+            color: #4f46e5;
+            text-decoration: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2>Генератор одноразовых ссылок</h2>
+
+    <div class="stats">
+        Сгенерировано: <b>{{ generated }}</b> / {{ limit }} <br>
+        Осталось: <b>{{ remaining }}</b>
+    </div>
+
+    <form method="post" action="/create">
+        <input
+            type="url"
+            name="target_url"
+            placeholder="https://example.com"
+            value="{{ target_url }}"
+            required
+        >
+        <button type="submit">Сгенерировать ссылку</button>
+    </form>
+
+    {% if link %}
+    <div class="result">
+        <div>
+            <a id="genLink" href="{{ link }}" target="_blank">{{ link }}</a>
+        </div>
+        <button class="copy-btn" onclick="copyLink()">Скопировать</button>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function copyLink() {
+    const text = document.getElementById("genLink").innerText;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("Ссылка скопирована");
+    });
+}
+</script>
+
+</body>
+</html>
