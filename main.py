@@ -9,7 +9,7 @@ from fastapi.templating import Jinja2Templates
 # =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
-GEN_LIMIT = 30
+GEN_LIMIT = 30000
 
 security = HTTPBasic()
 
