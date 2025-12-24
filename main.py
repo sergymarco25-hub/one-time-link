@@ -3,48 +3,16 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-ADMIN_USER = "admin"
-ADMIN_PASS = "12345"
-GEN_LIMIT = 30
+GEN_LIMIT = 30000
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 links = {}
 stats = {"generated": 0}
-authorized_ips = set()
 
-def client_ip(request: Request) -> str:
-    return request.client.host
-
-def is_logged_in(request: Request) -> bool:
-    return client_ip(request) in authorized_ips
-
-# =====================
-# LOGIN
-# =====================
-@app.api_route("/login", methods=["GET", "POST"], response_class=HTMLResponse)
-def login(request: Request, username: str = Form(None), password: str = Form(None)):
-    if request.method == "POST":
-        if username == ADMIN_USER and password == ADMIN_PASS:
-            authorized_ips.add(client_ip(request))
-            return RedirectResponse("/", status_code=302)
-
-        return templates.TemplateResponse(
-            "login.html",
-            {"request": request, "error": "Неверный логин или пароль"}
-        )
-
-    return templates.TemplateResponse("login.html", {"request": request})
-
-# =====================
-# HOME
-# =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    if not is_logged_in(request):
-        return RedirectResponse("/login", status_code=302)
-
     return templates.TemplateResponse(
         "index.html",
         {
@@ -57,16 +25,10 @@ def home(request: Request):
         }
     )
 
-# =====================
-# CREATE LINK
-# =====================
 @app.post("/create", response_class=HTMLResponse)
 def create(request: Request, target_url: str = Form(...)):
-    if not is_logged_in(request):
-        return RedirectResponse("/login", status_code=302)
-
     if stats["generated"] >= GEN_LIMIT:
-        return HTMLResponse("❌ Лимит генераций исчерпан", status_code=403)
+        return HTMLResponse("Лимит исчерпан", status_code=403)
 
     code = secrets.token_urlsafe(3)
     links[code] = {"url": target_url, "opens": 0}
@@ -87,18 +49,14 @@ def create(request: Request, target_url: str = Form(...)):
         }
     )
 
-# =====================
-# OPEN LINK
-# =====================
 @app.api_route("/{code}", methods=["GET", "HEAD"])
 def open_link(code: str):
     if code not in links:
-        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+        return HTMLResponse("Ссылка недействительна", status_code=410)
 
     links[code]["opens"] += 1
-
     if links[code]["opens"] == 1:
-        return HTMLResponse("⏳ Ссылка активирована. Откройте её ещё раз.")
+        return HTMLResponse("Активировано. Открой ещё раз.")
 
     url = links[code]["url"]
     del links[code]
