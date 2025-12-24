@@ -1,99 +1,153 @@
+import os
+import sqlite3
 import secrets
-from fastapi import FastAPI, Request, Form, Depends, HTTPException
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from starlette.middleware.sessions import SessionMiddleware
 
+# =========================
+# 🔧 НАСТРОЙКИ
+# =========================
+ADMIN_USER = "admin"
+ADMIN_PASS = "12345"
+GEN_LIMIT = 30
+
+DB_DIR = "data"
+DB_PATH = f"{DB_DIR}/app.db"
+
+os.makedirs(DB_DIR, exist_ok=True)
+
+# =========================
+# 🗄️ БАЗА ДАННЫХ
+# =========================
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
+cursor = conn.cursor()
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS stats (
+    id INTEGER PRIMARY KEY,
+    generated INTEGER
+)
+""")
+
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS links (
+    code TEXT PRIMARY KEY,
+    url TEXT,
+    opens INTEGER
+)
+""")
+
+cursor.execute("SELECT COUNT(*) FROM stats")
+if cursor.fetchone()[0] == 0:
+    cursor.execute("INSERT INTO stats (generated) VALUES (0)")
+    conn.commit()
+
+# =========================
+# 🚀 APP
+# =========================
 app = FastAPI()
+app.add_middleware(SessionMiddleware, secret_key="super-secret-key")
 templates = Jinja2Templates(directory="templates")
 
 # =========================
 # 🔐 АВТОРИЗАЦИЯ
 # =========================
-security = HTTPBasic()
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    return templates.TemplateResponse("login.html", {"request": request})
 
-USERNAME = "admin"
-PASSWORD = "12345"
+@app.post("/login")
+def login(request: Request, username: str = Form(...), password: str = Form(...)):
+    if username == ADMIN_USER and password == ADMIN_PASS:
+        request.session["auth"] = True
+        return RedirectResponse("/", status_code=302)
+    return HTMLResponse("❌ Неверные данные", status_code=401)
 
-def check_auth(credentials: HTTPBasicCredentials = Depends(security)):
-    if not (
-        secrets.compare_digest(credentials.username, USERNAME)
-        and secrets.compare_digest(credentials.password, PASSWORD)
-    ):
-        raise HTTPException(
-            status_code=401,
-            headers={"WWW-Authenticate": "Basic"},
-        )
-
-# =========================
-# 🔗 ССЫЛКИ В ПАМЯТИ
-# =========================
-links = {}
-
-def generate_code():
-    return secrets.token_urlsafe(3)
+def require_login(request: Request):
+    if not request.session.get("auth"):
+        return RedirectResponse("/login", status_code=302)
 
 # =========================
 # 🏠 ГЛАВНАЯ
 # =========================
 @app.get("/", response_class=HTMLResponse)
-def home(
-    request: Request,
-    _: HTTPBasicCredentials = Depends(check_auth)
-):
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "link": None
-        }
-    )
+def home(request: Request):
+    auth = require_login(request)
+    if auth:
+        return auth
+
+    cursor.execute("SELECT generated FROM stats")
+    generated = cursor.fetchone()[0]
+
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "generated": generated,
+        "limit": GEN_LIMIT,
+        "remaining": GEN_LIMIT - generated,
+        "link": None,
+        "target_url": ""
+    })
 
 # =========================
 # ➕ СОЗДАНИЕ ССЫЛКИ
 # =========================
 @app.post("/create", response_class=HTMLResponse)
-def create_link(
-    request: Request,
-    target_url: str = Form(...),
-    _: HTTPBasicCredentials = Depends(check_auth)
-):
-    code = generate_code()
-    links[code] = {
-        "url": target_url,
-        "opens": 0
-    }
+def create(request: Request, target_url: str = Form(...)):
+    auth = require_login(request)
+    if auth:
+        return auth
 
-    base_url = str(request.base_url).rstrip("/")
-    full_link = f"{base_url}/{code}"
+    cursor.execute("SELECT generated FROM stats")
+    generated = cursor.fetchone()[0]
 
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "link": full_link
-        }
+    if generated >= GEN_LIMIT:
+        return HTMLResponse("❌ Лимит генераций исчерпан", status_code=403)
+
+    code = secrets.token_urlsafe(3)
+    cursor.execute(
+        "INSERT INTO links (code, url, opens) VALUES (?, ?, 0)",
+        (code, target_url)
     )
+    cursor.execute(
+        "UPDATE stats SET generated = generated + 1"
+    )
+    conn.commit()
+
+    base = str(request.base_url).rstrip("/")
+    link = f"{base}/{code}"
+
+    return templates.TemplateResponse("index.html", {
+        "request": request,
+        "generated": generated + 1,
+        "limit": GEN_LIMIT,
+        "remaining": GEN_LIMIT - (generated + 1),
+        "link": link,
+        "target_url": target_url
+    })
 
 # =========================
-# 🌍 ПУБЛИЧНАЯ ССЫЛКА
+# 🌍 ОДНОРАЗОВАЯ ССЫЛКА
 # =========================
 @app.get("/{code}")
 def open_link(code: str):
-    if code not in links:
+    cursor.execute("SELECT url, opens FROM links WHERE code = ?", (code,))
+    row = cursor.fetchone()
+
+    if not row:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    data = links[code]
-    data["opens"] += 1
+    url, opens = row
+    opens += 1
 
-    # 1-е открытие — предпросмотр
-    if data["opens"] == 1:
+    if opens == 1:
+        cursor.execute("UPDATE links SET opens = 1 WHERE code = ?", (code,))
+        conn.commit()
         return HTMLResponse("⏳ Ссылка активирована. Откройте её ещё раз.")
 
-    # 2-е открытие — редирект
-    if data["opens"] == 2:
-        target = data["url"]
-        links.pop(code)
-        return RedirectResponse(target)
+    cursor.execute("DELETE FROM links WHERE code = ?", (code,))
+    conn.commit()
+    return RedirectResponse(url)
 
-    return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
