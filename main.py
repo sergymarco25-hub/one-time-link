@@ -39,7 +39,14 @@ def login(
     if request.method == "POST":
         if username == ADMIN_USER and password == ADMIN_PASS:
             response = RedirectResponse("/", status_code=302)
-            response.set_cookie(AUTH_COOKIE, "ok", httponly=True)
+            response.set_cookie(
+    AUTH_COOKIE,
+    "ok",
+    httponly=True,
+    samesite="lax",
+    secure=True,
+    path="/"
+)
             return response
 
         return templates.TemplateResponse(
