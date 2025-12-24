@@ -51,7 +51,8 @@
 
 <div class="box">
     <h2>Вход в систему</h2>
-    <form method="post">
+    <form method="post" action="/create">
+    <input type="hidden" name="auth" value="{{ auth }}">
         <input name="username" placeholder="Логин" required>
         <input type="password" name="password" placeholder="Пароль" required>
         <button type="submit">Войти</button>
