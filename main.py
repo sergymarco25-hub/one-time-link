@@ -8,7 +8,7 @@ from fastapi.templating import Jinja2Templates
 # =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
-GEN_LIMIT = 30
+GEN_LIMIT = 30000
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -16,9 +16,9 @@ templates = Jinja2Templates(directory="templates")
 # =====================
 # ХРАНЕНИЕ В ПАМЯТИ
 # =====================
-links = {}
-stats = {"generated": 0}
-sessions = set()  # активные сессии
+links = {}                 # одноразовые ссылки
+stats = {"generated": 0}   # счётчик генераций
+sessions = set()           # активные сессии
 
 # =====================
 # УТИЛИТЫ
@@ -46,10 +46,11 @@ def login_action(
     if username == ADMIN_USER and password == ADMIN_PASS:
         sid = secrets.token_urlsafe(16)
         sessions.add(sid)
+
         response = RedirectResponse("/", status_code=302)
         response.set_cookie(
-            "session_id",
-            sid,
+            key="session_id",
+            value=sid,
             httponly=True,
             samesite="lax"
         )
@@ -61,10 +62,11 @@ def login_action(
     )
 
 # =====================
-# HOME
+# HOME (ПУБЛИЧНЫЙ URL)
 # =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
+    # если не залогинен — показываем логин
     if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
 
@@ -81,7 +83,7 @@ def home(request: Request):
     )
 
 # =====================
-# CREATE LINK
+# CREATE LINK (ТОЛЬКО ПОСЛЕ ЛОГИНА)
 # =====================
 @app.post("/create", response_class=HTMLResponse)
 def create(request: Request, target_url: str = Form(...)):
@@ -96,7 +98,7 @@ def create(request: Request, target_url: str = Form(...)):
     stats["generated"] += 1
 
     base = str(request.base_url).rstrip("/")
-    link = f"{base}/{code}"
+    link = f"{base}/l/{code}"
 
     return templates.TemplateResponse(
         "index.html",
@@ -111,16 +113,16 @@ def create(request: Request, target_url: str = Form(...)):
     )
 
 # =====================
-# OPEN LINK
+# OPEN ONE-TIME LINK
 # =====================
-@app.api_route("/{code}", methods=["GET", "HEAD"])
+@app.api_route("/l/{code}", methods=["GET", "HEAD"])
 def open_link(code: str):
     if code not in links:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     links[code]["opens"] += 1
 
-    # защита от предпросмотра
+    # первый заход — защита от предпросмотра
     if links[code]["opens"] == 1:
         return HTMLResponse("⏳ Ссылка активирована. Откройте её ещё раз.")
 
