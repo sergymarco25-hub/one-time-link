@@ -3,9 +3,6 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
-# =====================
-# НАСТРОЙКИ
-# =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
 GEN_LIMIT = 30
@@ -13,34 +10,25 @@ GEN_LIMIT = 30
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# =====================
-# ХРАНЕНИЕ В ПАМЯТИ
-# =====================
 links = {}
 stats = {"generated": 0}
-active_tokens = set()
+authorized_ips = set()
 
-# =====================
-# ПРОВЕРКА АВТОРИЗАЦИИ
-# =====================
+def client_ip(request: Request) -> str:
+    return request.client.host
+
 def is_logged_in(request: Request) -> bool:
-    token = request.query_params.get("auth")
-    return token in active_tokens
+    return client_ip(request) in authorized_ips
 
 # =====================
 # LOGIN
 # =====================
 @app.api_route("/login", methods=["GET", "POST"], response_class=HTMLResponse)
-def login(
-    request: Request,
-    username: str = Form(None),
-    password: str = Form(None),
-):
+def login(request: Request, username: str = Form(None), password: str = Form(None)):
     if request.method == "POST":
         if username == ADMIN_USER and password == ADMIN_PASS:
-            token = secrets.token_urlsafe(16)
-            active_tokens.add(token)
-            return RedirectResponse(f"/?auth={token}", status_code=302)
+            authorized_ips.add(client_ip(request))
+            return RedirectResponse("/", status_code=302)
 
         return templates.TemplateResponse(
             "login.html",
@@ -52,12 +40,10 @@ def login(
 # =====================
 # HOME
 # =====================
-@app.api_route("/", methods=["GET", "POST"], response_class=HTMLResponse)
+@app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
-
-    auth = request.query_params.get("auth")
 
     return templates.TemplateResponse(
         "index.html",
@@ -67,8 +53,7 @@ def home(request: Request):
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - stats["generated"],
             "link": None,
-            "target_url": "",
-            "auth": auth
+            "target_url": ""
         }
     )
 
@@ -76,12 +61,8 @@ def home(request: Request):
 # CREATE LINK
 # =====================
 @app.post("/create", response_class=HTMLResponse)
-def create(
-    request: Request,
-    target_url: str = Form(...),
-    auth: str = Form(...)
-):
-    if auth not in active_tokens:
+def create(request: Request, target_url: str = Form(...)):
+    if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
 
     if stats["generated"] >= GEN_LIMIT:
@@ -102,8 +83,7 @@ def create(
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - stats["generated"],
             "link": link,
-            "target_url": target_url,
-            "auth": auth
+            "target_url": target_url
         }
     )
 
