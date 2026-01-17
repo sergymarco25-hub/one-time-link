@@ -34,9 +34,6 @@ last_target = ""
 def is_logged_in(request: Request):
     return request.cookies.get("session_id") in sessions
 
-def has_seen_cookie(request: Request, code: str):
-    return request.cookies.get(f"seen_{code}") == "1"
-
 # =====================
 # LOGIN
 # =====================
@@ -111,7 +108,7 @@ def create(request: Request, target_url: str = Form(...)):
     return RedirectResponse("/", status_code=302)
 
 # =====================
-# STEP 1 — ПОКАЗ КНОПКИ
+# STEP 1 — ПОКАЗ СТРАНИЦЫ
 # =====================
 @app.get("/l/{code}", response_class=HTMLResponse)
 def landing(request: Request, code: str):
@@ -119,6 +116,19 @@ def landing(request: Request, code: str):
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if links[code]["state"] == "USED":
+        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
+    return templates.TemplateResponse(
+        "open.html",
+        {"request": request, "code": code}
+    )
+
+# =====================
+# STEP 1.5 — АВТОПЕРЕХОД
+# =====================
+@app.get("/go", response_class=HTMLResponse)
+def auto_go(request: Request, code: str):
+    if code not in links:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     return templates.TemplateResponse(
@@ -136,14 +146,12 @@ def open_real(request: Request, code: str = Form(...)):
 
     link = links[code]
 
-    # первый реальный вход
     if link["state"] == "NEW":
         link["state"] = "OPENED"
-        resp = RedirectResponse(link["url"])
+        resp = RedirectResponse(link["url"], status_code=302)
         resp.set_cookie(f"seen_{code}", "1", max_age=3600, samesite="lax")
         return resp
 
-    # повторный вход — пароль
     return templates.TemplateResponse(
         "password.html",
         {"request": request, "code": code}
@@ -152,8 +160,6 @@ def open_real(request: Request, code: str = Form(...)):
 # =====================
 # PASSWORD
 # =====================
-from fastapi import Request
-
 @app.post("/check-password")
 def check_password(
     request: Request,
@@ -178,37 +184,8 @@ def check_password(
     links[code]["state"] = "USED"
     del links[code]
 
-    return RedirectResponse(url)
+    return RedirectResponse(url, status_code=302)
 
-    if password != REOPEN_PASSWORD:
-        return templates.TemplateResponse(
-    "password.html",
-    {
-        "request": request,
-        "code": code,
-        "error": True
-    },
-    status_code=403
-)
-
-    url = links[code]["url"]
-    links[code]["state"] = "USED"
-    del links[code]
-
-    return RedirectResponse(url)
-@app.get("/go")
-def auto_go(request: Request, code: str):
-    if code not in links:
-        return HTMLResponse("Ссылка недействительна", status_code=410)
-
-    # НИЧЕГО не сжигаем, просто показываем страницу
-    return templates.TemplateResponse(
-        "open.html",
-        {
-            "request": request,
-            "code": code
-        }
-    )
 
 
 
