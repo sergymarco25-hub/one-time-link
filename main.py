@@ -119,9 +119,13 @@ def landing(request: Request, code: str):
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     return templates.TemplateResponse(
-        "open.html",
-        {"request": request, "code": code}
-    )
+    "open.html",
+    {
+        "request": request,
+        "code": code,
+        "auto": True
+    }
+)
 
 # =====================
 # STEP 1.5 — АВТОПЕРЕХОД
@@ -132,9 +136,13 @@ def auto_go(request: Request, code: str):
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     return templates.TemplateResponse(
-        "open.html",
-        {"request": request, "code": code}
-    )
+    "open.html",
+    {
+        "request": request,
+        "code": code,
+        "auto": False
+    }
+)
 
 # =====================
 # STEP 2 — ОСОЗНАННОЕ ОТКРЫТИЕ
