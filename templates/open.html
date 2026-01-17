@@ -2,13 +2,15 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Открыть ссылку</title>
+    <title>Перейти на сайт</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- ⏱ Автопереход через 2 секунды -->
+    <meta http-equiv="refresh" content="2;url=/open">
 
     <style>
         body {
             margin: 0;
-            padding: 0;
             height: 100vh;
             display: flex;
             justify-content: center;
@@ -28,14 +30,20 @@
         }
 
         h2 {
-            margin-bottom: 30px;
+            margin-bottom: 15px;
             font-size: 22px;
             color: #333;
         }
 
+        p {
+            margin-bottom: 30px;
+            font-size: 15px;
+            color: #666;
+        }
+
         button {
             width: 100%;
-            padding: 20px;
+            padding: 18px;
             font-size: 20px;
             font-weight: 600;
             border: none;
@@ -48,17 +56,28 @@
         button:active {
             transform: scale(0.98);
         }
+
+        .hint {
+            margin-top: 15px;
+            font-size: 13px;
+            color: #888;
+        }
     </style>
 </head>
 <body>
 
 <div class="card">
     <h2>Перейти на сайт</h2>
+    <p>Вы будете перенаправлены на сайт через 2 секунды</p>
 
     <form method="post" action="/open">
         <input type="hidden" name="code" value="{{ code }}">
         <button type="submit">Продолжить</button>
     </form>
+
+    <div class="hint">
+        Если переход не начался автоматически, нажмите кнопку
+    </div>
 </div>
 
 </body>
