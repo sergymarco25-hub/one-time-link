@@ -16,9 +16,13 @@ templates = Jinja2Templates(directory="templates")
 # =====================
 # ХРАНЕНИЕ В ПАМЯТИ
 # =====================
-links = {}                 # одноразовые ссылки
-stats = {"generated": 0}   # счётчик генераций
-sessions = set()           # активные сессии
+links = {}                   # одноразовые ссылки
+stats = {"generated": 0}     # счётчик генераций
+sessions = set()             # активные сессии
+
+# данные для отображения после редиректа
+last_link = None
+last_target = ""
 
 # =====================
 # УТИЛИТЫ
@@ -62,11 +66,10 @@ def login_action(
     )
 
 # =====================
-# HOME (ПУБЛИЧНЫЙ URL)
+# HOME (GET)
 # =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    # если не залогинен — показываем логин
     if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
 
@@ -77,16 +80,18 @@ def home(request: Request):
             "generated": stats["generated"],
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - stats["generated"],
-            "link": None,
-            "target_url": ""
+            "link": last_link,
+            "target_url": last_target
         }
     )
 
 # =====================
-# CREATE LINK (ТОЛЬКО ПОСЛЕ ЛОГИНА)
+# CREATE LINK (POST → REDIRECT)
 # =====================
-@app.post("/create", response_class=HTMLResponse)
+@app.post("/create")
 def create(request: Request, target_url: str = Form(...)):
+    global last_link, last_target
+
     if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
 
@@ -94,23 +99,15 @@ def create(request: Request, target_url: str = Form(...)):
         return HTMLResponse("❌ Лимит генераций исчерпан", status_code=403)
 
     code = secrets.token_urlsafe(3)
-    links[code] = {"url": target_url, "opens": 0}
+    links[code] = target_url
     stats["generated"] += 1
 
     base = str(request.base_url).rstrip("/")
-    link = f"{base}/l/{code}"
+    last_link = f"{base}/l/{code}"
+    last_target = target_url
 
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "generated": stats["generated"],
-            "limit": GEN_LIMIT,
-            "remaining": GEN_LIMIT - stats["generated"],
-            "link": link,
-            "target_url": target_url
-        }
-    )
+    # 🔑 ВАЖНО: редирект, а не HTML
+    return RedirectResponse("/", status_code=302)
 
 # =====================
 # OPEN ONE-TIME LINK
@@ -120,12 +117,7 @@ def open_link(code: str):
     if code not in links:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    links[code]["opens"] += 1
-
-    # первый заход — защита от предпросмотра
-    if links[code]["opens"] == 1:
-        return HTMLResponse("⏳ Ссылка активирована. Откройте её ещё раз.")
-
-    url = links[code]["url"]
+    url = links[code]
     del links[code]
+
     return RedirectResponse(url)
