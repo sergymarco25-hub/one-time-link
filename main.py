@@ -1,17 +1,24 @@
 import os
 import secrets
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+# =====================
+# НАСТРОЙКИ
+# =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
+
 REOPEN_PASSWORD = os.getenv("REOPEN_PASSWORD", "CHANGE_ME")
 GEN_LIMIT = 30000
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
+# =====================
+# ХРАНЕНИЕ В ПАМЯТИ
+# =====================
 # code -> {"url": str, "state": "NEW" | "OPENED" | "USED"}
 links = {}
 
@@ -21,18 +28,21 @@ sessions = set()
 last_link = None
 last_target = ""
 
-# -------------------------
-# helpers
-# -------------------------
+# =====================
+# ВСПОМОГАТЕЛЬНОЕ
+# =====================
 def is_logged_in(request: Request):
     return request.cookies.get("session_id") in sessions
+
+def has_any_cookie(request: Request):
+    return bool(request.cookies)
 
 def has_seen_cookie(request: Request, code: str):
     return request.cookies.get(f"seen_{code}") == "1"
 
-# -------------------------
-# login
-# -------------------------
+# =====================
+# LOGIN
+# =====================
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
@@ -55,9 +65,9 @@ def login_action(
         {"request": request, "error": "Неверный логин или пароль"}
     )
 
-# -------------------------
-# home
-# -------------------------
+# =====================
+# HOME
+# =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     if not is_logged_in(request):
@@ -75,9 +85,9 @@ def home(request: Request):
         }
     )
 
-# -------------------------
-# create link
-# -------------------------
+# =====================
+# CREATE LINK
+# =====================
 @app.post("/create")
 def create(request: Request, target_url: str = Form(...)):
     global last_link, last_target
@@ -102,9 +112,9 @@ def create(request: Request, target_url: str = Form(...)):
 
     return RedirectResponse("/", status_code=302)
 
-# -------------------------
-# open link
-# -------------------------
+# =====================
+# OPEN LINK (КЛЮЧЕВОЙ МОМЕНТ)
+# =====================
 @app.get("/l/{code}")
 def open_link(request: Request, code: str):
     if code not in links:
@@ -115,29 +125,31 @@ def open_link(request: Request, code: str):
     if link["state"] == "USED":
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    # первый вход
+    # 🔕 ФОНОВЫЕ ЗАПРОСЫ (Telegram / SMS / preview)
+    if not has_any_cookie(request):
+        return Response(status_code=204)
+
+    # 🔹 ПЕРВЫЙ РЕАЛЬНЫЙ ВХОД
     if link["state"] == "NEW":
         link["state"] = "OPENED"
         resp = RedirectResponse(link["url"])
-        resp.set_cookie(f"seen_{code}", "1", max_age=3600, samesite="lax")
+        resp.set_cookie(
+            f"seen_{code}",
+            "1",
+            max_age=3600,
+            samesite="lax"
+        )
         return resp
 
-    # повторный клик по ссылке → пароль
-    if has_seen_cookie(request, code):
-        return templates.TemplateResponse(
-            "password.html",
-            {"request": request, "code": code}
-        )
-
-    # другой браузер
+    # 🔹 ВТОРОЙ КЛИК → ПАРОЛЬ
     return templates.TemplateResponse(
         "password.html",
         {"request": request, "code": code}
     )
 
-# -------------------------
-# check password
-# -------------------------
+# =====================
+# CHECK PASSWORD
+# =====================
 @app.post("/check-password")
 def check_password(code: str = Form(...), password: str = Form(...)):
     if code not in links:
@@ -151,5 +163,6 @@ def check_password(code: str = Form(...), password: str = Form(...)):
     del links[code]
 
     return RedirectResponse(url)
+
 
 
