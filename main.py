@@ -152,10 +152,33 @@ def open_real(request: Request, code: str = Form(...)):
 # =====================
 # PASSWORD
 # =====================
+from fastapi import Request
+
 @app.post("/check-password")
-def check_password(code: str = Form(...), password: str = Form(...)):
+def check_password(
+    request: Request,
+    code: str = Form(...),
+    password: str = Form(...)
+):
     if code not in links:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
+    if password != REOPEN_PASSWORD:
+        return templates.TemplateResponse(
+            "password.html",
+            {
+                "request": request,
+                "code": code,
+                "error": True
+            },
+            status_code=403
+        )
+
+    url = links[code]["url"]
+    links[code]["state"] = "USED"
+    del links[code]
+
+    return RedirectResponse(url)
 
     if password != REOPEN_PASSWORD:
         return templates.TemplateResponse(
