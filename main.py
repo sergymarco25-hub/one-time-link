@@ -196,7 +196,19 @@ def check_password(
     del links[code]
 
     return RedirectResponse(url)
+@app.get("/go")
+def auto_go(request: Request, code: str):
+    if code not in links:
+        return HTMLResponse("Ссылка недействительна", status_code=410)
 
+    # НИЧЕГО не сжигаем, просто показываем страницу
+    return templates.TemplateResponse(
+        "open.html",
+        {
+            "request": request,
+            "code": code
+        }
+    )
 
 
 
