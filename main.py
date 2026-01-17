@@ -158,7 +158,15 @@ def check_password(code: str = Form(...), password: str = Form(...)):
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if password != REOPEN_PASSWORD:
-        return HTMLResponse("❌ Неверный пароль", status_code=403)
+        return templates.TemplateResponse(
+    "password.html",
+    {
+        "request": request,
+        "code": code,
+        "error": True
+    },
+    status_code=403
+)
 
     url = links[code]["url"]
     links[code]["state"] = "USED"
