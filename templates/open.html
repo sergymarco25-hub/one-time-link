@@ -5,9 +5,6 @@
     <title>Перейти на сайт</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- БЕЗОПАСНЫЙ автопереход -->
-    <meta http-equiv="refresh" content="2;url=/go?code={{ code }}">
-
     <style>
         body {
             margin: 0;
@@ -45,19 +42,29 @@
             color: #888;
         }
     </style>
+
+    {% if auto %}
+    <script>
+        setTimeout(() => {
+            document.getElementById("open-form").submit();
+        }, 2000);
+    </script>
+    {% endif %}
 </head>
 <body>
 
 <div class="box">
     <h2>Перейти на сайт</h2>
-    <p>Вы будете перенаправлены автоматически</p>
+    <p>Вы будете автоматически перенаправлены</p>
 
-    <form method="post" action="/open">
+    <form method="post" action="/open" id="open-form">
         <input type="hidden" name="code" value="{{ code }}">
         <button type="submit">Продолжить</button>
     </form>
 
-    <div class="note">Если переход не начался — нажмите кнопку</div>
+    <div class="note">
+        Если переход не начался автоматически — нажмите кнопку
+    </div>
 </div>
 
 </body>
