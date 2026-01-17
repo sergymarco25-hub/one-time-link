@@ -5,7 +5,7 @@
     <title>Перейти на сайт</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <!-- ⏱ Автопереход через 2 секунды -->
+    <!-- БЕЗОПАСНЫЙ автопереход -->
     <meta http-equiv="refresh" content="2;url=/go?code={{ code }}">
 
     <style>
@@ -16,49 +16,31 @@
             justify-content: center;
             align-items: center;
             background: #f2f4f8;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            font-family: system-ui, sans-serif;
         }
-
-        .card {
-            background: white;
-            padding: 40px 30px;
+        .box {
+            background: #fff;
+            padding: 40px;
             border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-            text-align: center;
+            width: 100%;
             max-width: 420px;
-            width: 90%;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,.1);
         }
-
-        h2 {
-            margin-bottom: 15px;
-            font-size: 22px;
-            color: #333;
-        }
-
-        p {
-            margin-bottom: 30px;
-            font-size: 15px;
-            color: #666;
-        }
-
+        h2 { margin-bottom: 10px; }
+        p { color: #666; margin-bottom: 30px; }
         button {
             width: 100%;
             padding: 18px;
-            font-size: 20px;
-            font-weight: 600;
-            border: none;
+            font-size: 18px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #4f46e5, #3b82f6);
-            color: white;
+            border: none;
+            background: #2563eb;
+            color: #fff;
             cursor: pointer;
         }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        .hint {
-            margin-top: 15px;
+        .note {
+            margin-top: 14px;
             font-size: 13px;
             color: #888;
         }
@@ -66,18 +48,16 @@
 </head>
 <body>
 
-<div class="card">
+<div class="box">
     <h2>Перейти на сайт</h2>
-    <p>Вы будете перенаправлены на сайт через 2 секунды</p>
+    <p>Вы будете перенаправлены автоматически</p>
 
     <form method="post" action="/open">
         <input type="hidden" name="code" value="{{ code }}">
         <button type="submit">Продолжить</button>
     </form>
 
-    <div class="hint">
-        Если переход не начался автоматически, нажмите кнопку
-    </div>
+    <div class="note">Если переход не начался — нажмите кнопку</div>
 </div>
 
 </body>
