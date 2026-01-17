@@ -3,12 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <title>Открыть ссылку</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #f2f4f8;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        }
+
+        .card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 420px;
+            width: 90%;
+        }
+
+        h2 {
+            margin-bottom: 30px;
+            font-size: 22px;
+            color: #333;
+        }
+
+        button {
+            width: 100%;
+            padding: 20px;
+            font-size: 20px;
+            font-weight: 600;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #4f46e5, #3b82f6);
+            color: white;
+            cursor: pointer;
+        }
+
+        button:active {
+            transform: scale(0.98);
+        }
+    </style>
 </head>
 <body>
-    <h2>Для продолжения нажмите кнопку</h2>
+
+<div class="card">
+    <h2>Нажмите кнопку, чтобы открыть ссылку</h2>
+
     <form method="post" action="/open">
         <input type="hidden" name="code" value="{{ code }}">
         <button type="submit">Открыть ссылку</button>
     </form>
+</div>
+
 </body>
 </html>
