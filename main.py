@@ -1,3 +1,4 @@
+import os
 import secrets
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -8,6 +9,11 @@ from fastapi.templating import Jinja2Templates
 # =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
+
+# 🔐 ГЛОБАЛЬНЫЙ ПАРОЛЬ ДЛЯ ПОВТОРНОГО ДОСТУПА
+# МЕНЯЕТСЯ В НАСТРОЙКАХ RENDER (Environment Variables)
+REOPEN_PASSWORD = os.getenv("REOPEN_PASSWORD", "CHANGE_ME")
+
 GEN_LIMIT = 30000
 
 app = FastAPI()
@@ -16,7 +22,9 @@ templates = Jinja2Templates(directory="templates")
 # =====================
 # ХРАНЕНИЕ В ПАМЯТИ
 # =====================
-links = {}        # code -> {"url": str, "armed": bool}
+# code -> {"url": str, "state": "NEW" | "OPENED" | "USED"}
+links = {}
+
 stats = {"generated": 0}
 sessions = set()
 
@@ -65,7 +73,7 @@ def login_action(
     )
 
 # =====================
-# HOME (GET)
+# HOME
 # =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
@@ -85,7 +93,7 @@ def home(request: Request):
     )
 
 # =====================
-# CREATE LINK (POST → REDIRECT → GET)
+# CREATE LINK
 # =====================
 @app.post("/create")
 def create(request: Request, target_url: str = Form(...)):
@@ -101,7 +109,7 @@ def create(request: Request, target_url: str = Form(...)):
 
     links[code] = {
         "url": target_url,
-        "armed": False
+        "state": "NEW"
     }
 
     stats["generated"] += 1
@@ -113,23 +121,45 @@ def create(request: Request, target_url: str = Form(...)):
     return RedirectResponse("/", status_code=302)
 
 # =====================
-# OPEN LINK — ДВОЙНОЕ ОТКРЫТИЕ
+# OPEN LINK
 # =====================
 @app.api_route("/l/{code}", methods=["GET", "HEAD"])
-def open_link(code: str):
+def open_link(request: Request, code: str):
     if code not in links:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     link = links[code]
 
-    # 1️⃣ Первый заход (Telegram / preview)
-    if not link["armed"]:
-        link["armed"] = True
+    # 1️⃣ ПЕРВЫЙ ВХОД — БЕЗ ПАРОЛЯ
+    if link["state"] == "NEW":
+        link["state"] = "OPENED"
         return RedirectResponse(f"/go/{code}")
 
-    # 2️⃣ Второй заход (реальный пользователь)
-    url = link["url"]
+    # 2️⃣ ВТОРОЙ ВХОД — ТРЕБУЕТ ПАРОЛЬ
+    if link["state"] == "OPENED":
+        return templates.TemplateResponse(
+            "password.html",
+            {"request": request, "code": code}
+        )
+
+    # 3️⃣ ИСПОЛЬЗОВАНА
+    return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
+# =====================
+# ПРОВЕРКА ПАРОЛЯ
+# =====================
+@app.post("/check-password")
+def check_password(code: str = Form(...), password: str = Form(...)):
+    if code not in links:
+        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
+    if password != REOPEN_PASSWORD:
+return HTMLResponse("❌ Неверный пароль", status_code=403)
+
+    url = links[code]["url"]
+    links[code]["state"] = "USED"
     del links[code]
+
     return RedirectResponse(url)
 
 # =====================
