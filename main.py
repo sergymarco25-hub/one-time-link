@@ -1,6 +1,6 @@
 import os
 import secrets
-from fastapi import FastAPI, Request, Form, Response
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
@@ -17,7 +17,7 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # =====================
-# ХРАНЕНИЕ В ПАМЯТИ
+# ХРАНЕНИЕ
 # =====================
 # code -> {"url": str, "state": "NEW" | "OPENED" | "USED"}
 links = {}
@@ -33,9 +33,6 @@ last_target = ""
 # =====================
 def is_logged_in(request: Request):
     return request.cookies.get("session_id") in sessions
-
-def has_any_cookie(request: Request):
-    return bool(request.cookies)
 
 def has_seen_cookie(request: Request, code: str):
     return request.cookies.get(f"seen_{code}") == "1"
@@ -106,6 +103,7 @@ def create(request: Request, target_url: str = Form(...)):
     }
 
     stats["generated"] += 1
+
     base = str(request.base_url).rstrip("/")
     last_link = f"{base}/l/{code}"
     last_target = target_url
@@ -113,42 +111,46 @@ def create(request: Request, target_url: str = Form(...)):
     return RedirectResponse("/", status_code=302)
 
 # =====================
-# OPEN LINK (КЛЮЧЕВОЙ МОМЕНТ)
+# STEP 1 — ПОКАЗ КНОПКИ
 # =====================
-@app.get("/l/{code}")
-def open_link(request: Request, code: str):
+@app.get("/l/{code}", response_class=HTMLResponse)
+def landing(request: Request, code: str):
+    if code not in links:
+        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
+    if links[code]["state"] == "USED":
+        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
+    return templates.TemplateResponse(
+        "open.html",
+        {"request": request, "code": code}
+    )
+
+# =====================
+# STEP 2 — ОСОЗНАННОЕ ОТКРЫТИЕ
+# =====================
+@app.post("/open")
+def open_real(request: Request, code: str = Form(...)):
     if code not in links:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     link = links[code]
 
-    if link["state"] == "USED":
-        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
-
-    # 🔕 ФОНОВЫЕ ЗАПРОСЫ (Telegram / SMS / preview)
-    if not has_any_cookie(request):
-        return Response(status_code=204)
-
-    # 🔹 ПЕРВЫЙ РЕАЛЬНЫЙ ВХОД
+    # первый реальный вход
     if link["state"] == "NEW":
         link["state"] = "OPENED"
         resp = RedirectResponse(link["url"])
-        resp.set_cookie(
-            f"seen_{code}",
-            "1",
-            max_age=3600,
-            samesite="lax"
-        )
+        resp.set_cookie(f"seen_{code}", "1", max_age=3600, samesite="lax")
         return resp
 
-    # 🔹 ВТОРОЙ КЛИК → ПАРОЛЬ
+    # повторный вход — пароль
     return templates.TemplateResponse(
         "password.html",
         {"request": request, "code": code}
     )
 
 # =====================
-# CHECK PASSWORD
+# PASSWORD
 # =====================
 @app.post("/check-password")
 def check_password(code: str = Form(...), password: str = Form(...)):
