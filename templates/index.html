@@ -12,8 +12,8 @@ body {
 }
 <style> /* Подсветка строки, если ссылка была открыта */
 .row-active {
-  background: #ecfdf5;
-  border-left: 4px solid #22c55e;
+  background-color: #ecfdf5 !important;
+  border-left: 4px solid #22c55e !important;
 }
 .container {
   max-width: 720px;
@@ -119,7 +119,7 @@ button {
 
 <div class="history">
 {% for code, item in links.items() %}
-<div class="history-item {% if item.state in ['OPENED', 'USED'] %}row-active{% endif %}">
+<div class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}">
   <span class="status-dot
     {% if item.state == 'NEW' %}status-new
     {% elif item.state == 'OPENED' %}status-opened
