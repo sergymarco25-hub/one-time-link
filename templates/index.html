@@ -108,21 +108,21 @@ button:hover {
 <div class="container">
   <h1>Генерация одноразовой ссылки</h1>
 
-  <!-- ПОЛЕ ВВОДА -->
+  <!-- ИСХОДНАЯ ССЫЛКА -->
   <form method="post" action="/create">
     <div class="form-row">
       <input
-  type="text"
-  name="target_url"
-  placeholder="Вставьте ссылку"
-  value="{{ link }}"
-  required
->
+        type="text"
+        name="target_url"
+        placeholder="Вставьте ссылку"
+        value="{{ target }}"
+        required
+      >
       <button type="submit">Сгенерировать</button>
     </div>
   </form>
 
-  <!-- РЕЗУЛЬТАТ -->
+  <!-- ОДНОРАЗОВАЯ ССЫЛКА -->
   {% if link %}
   <div class="result">
     <input
