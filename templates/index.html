@@ -1,4 +1,3 @@
-<!-- THIS_IS_NEW_INDEX_2026 -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,7 +6,7 @@
 
 <style>
 body {
-  font-family: Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
   background: #f4f6f8;
   margin: 0;
 }
@@ -17,12 +16,13 @@ body {
   margin: 60px auto;
   background: #fff;
   padding: 32px;
-  border-radius: 12px;
-  box-shadow: 0 10px 25px rgba(0,0,0,.08);
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
 }
 
 h1 {
   margin-top: 0;
+  font-size: 22px;
 }
 
 .form-row {
@@ -31,24 +31,27 @@ h1 {
 }
 
 input[type="text"] {
-  flex: 1;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  box-sizing: border-box;
 }
 
+input.main { flex: 1; }
+input.client { max-width: 160px; }
+
 button {
+  margin-top: 10px;
   padding: 12px;
-  border-radius: 8px;
+  border-radius: 10px;
   border: none;
   background: #4f46e5;
-  color: white;
+  color: #fff;
   cursor: pointer;
-  margin-top: 10px;
 }
 
 .copy-btn {
-  background: #16a34a;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
 .sound-btn {
@@ -56,20 +59,16 @@ button {
   color: #111;
 }
 
-.history {
-  margin-top: 30px;
+#generatedLink {
+  width: 100%;
+  margin-top: 12px;
 }
+
+.history { margin-top: 30px; }
 
 .history-item {
   display: flex;
-  padding: 8px;
-  border-radius: 6px;
-  margin-bottom: 8px;
-}
-
-.history-item.highlight {
-  background: #ecfdf5;
-  border: 2px solid #22c55e;
+  margin-bottom: 10px;
 }
 
 .status-dot {
@@ -83,16 +82,6 @@ button {
 .status-new { background: #facc15; }
 .status-opened { background: #22c55e; }
 .status-used { background: #ef4444; }
-
-.notification {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #111;
-  color: #fff;
-  padding: 12px 16px;
-  border-radius: 8px;
-}
 </style>
 </head>
 
@@ -103,14 +92,14 @@ button {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input name="target_url" value="{{ target }}" placeholder="Вставьте ссылку" required>
-    <input name="client" placeholder="Поле" style="max-width:150px">
+    <input class="main" name="target_url" value="{{ target }}" placeholder="Вставьте ссылку" required>
+    <input class="client" name="client" placeholder="Поле">
   </div>
   <button type="submit">Сгенерировать</button>
 </form>
 
 {% if link %}
-<input id="generatedLink" value="{{ link }}" readonly style="margin-top:10px;width:100%">
+<input id="generatedLink" value="{{ link }}" readonly>
 <button class="copy-btn" id="copyBtn">Скопировать</button>
 {% endif %}
 
@@ -118,19 +107,19 @@ button {
   🔊 Звук: <span id="soundState"></span>
 </button>
 
-<div class="history" id="history">
+<div class="history">
 {% for code, item in links.items() %}
-<div class="history-item" data-code="{{ code }}">
-  <div class="status-dot
+<div class="history-item">
+  <span class="status-dot
     {% if item.state == 'NEW' %}status-new
     {% elif item.state == 'OPENED' %}status-opened
     {% else %}status-used{% endif %}">
-  </div>
+  </span>
   <div>
     <div>{{ request.base_url }}l/{{ code }} {% if item.client %}— <b>{{ item.client }}</b>{% endif %}</div>
-    <small>Создана: {{ item.created_at }}</small><br>
+    <div style="font-size:12px;color:#6b7280">Создана: {{ item.created_at }}</div>
     {% if item.opened_at %}
-    <small>Открыта: {{ item.opened_at }}</small>
+    <div style="font-size:12px;color:#6b7280">Открыта: {{ item.opened_at }}</div>
     {% endif %}
   </div>
 </div>
@@ -142,66 +131,43 @@ button {
 /* ===== COPY ===== */
 const copyBtn = document.getElementById("copyBtn");
 if (copyBtn) {
-  copyBtn.onclick = () => {
+  copyBtn.addEventListener("click", async () => {
     const val = document.getElementById("generatedLink").value;
-    navigator.clipboard.writeText(val).then(() => {
-      showNotify("Ссылка скопирована");
-    });
-  };
+    try {
+      await navigator.clipboard.writeText(val);
+      alert("Ссылка скопирована");
+    } catch {
+      alert("Не удалось скопировать");
+    }
+  });
 }
 
 /* ===== SOUND ===== */
 let soundEnabled = localStorage.getItem("sound") !== "off";
-let sound = null;
-
-const soundBtn = document.getElementById("soundBtn");
 const soundState = document.getElementById("soundState");
+const soundBtn = document.getElementById("soundBtn");
 
-function updateSound() {
+const audio = new Audio(
+  "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+);
+
+function updateSoundLabel() {
   soundState.textContent = soundEnabled ? "Вкл" : "Выкл";
 }
-updateSound();
+updateSoundLabel();
 
-soundBtn.onclick = () => {
+soundBtn.addEventListener("click", () => {
   soundEnabled = !soundEnabled;
   localStorage.setItem("sound", soundEnabled ? "on" : "off");
-  updateSound();
-  if (!sound) {
-    sound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+  updateSoundLabel();
+  if (soundEnabled) {
+    audio.play().catch(()=>{});
   }
-};
+});
+</script>
 
-function playSound() {
-  if (soundEnabled && sound) {
-    sound.play().catch(()=>{});
-  }
-}
-
-/* ===== STATUS ===== */
-let knownStates = {};
-
-async function pollStatus() {
-  try {
-    const res = await fetch("/status");
-    const data = await res.json();
-
-    for (let code in data) {
-      const state = data[code].state;
-      if (!(code in knownStates)) {
-        knownStates[code] = state;
-        continue;
-      }
-      if (knownStates[code] === "NEW" && state === "OPENED") {
-        showNotify("Клиент открыл ссылку");
-        highlight(code);
-        playSound();
-      }
-      knownStates[code] = state;
-    }
-  } catch(e){}
-}
-
-function highlight(code) {
+</body>
+</html>
 
 
 
