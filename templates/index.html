@@ -43,24 +43,50 @@ button {
   padding: 12px 18px;
   border-radius: 10px;
   border: none;
-  background: #4f46e5;
-  color: #fff;
   font-size: 15px;
   cursor: pointer;
 }
 
-button:hover {
+/* кнопка СГЕНЕРИРОВАТЬ */
+.gen-btn {
+  background: #4f46e5;
+  color: #fff;
+}
+.gen-btn:hover {
   background: #4338ca;
+}
+
+/* зелёная кнопка СКОПИРОВАТЬ */
+.copy-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+
+.copy-btn:hover {
+  box-shadow: 0 6px 18px rgba(34,197,94,.35);
+}
+
+.copy-btn:active {
+  transform: scale(0.97);
 }
 
 .result {
   margin-top: 16px;
-  display: flex;
-  gap: 10px;
 }
 
 .result input {
   background: #f9fafb;
+  width: 100%;
+  margin-bottom: 8px;
 }
 
 .history {
@@ -118,7 +144,7 @@ button:hover {
         value="{{ target }}"
         required
       >
-      <button type="submit">Сгенерировать</button>
+      <button type="submit" class="gen-btn">Сгенерировать</button>
     </div>
   </form>
 
@@ -126,12 +152,12 @@ button:hover {
   {% if link %}
   <div class="result">
     <input
-      id="result"
+      id="generatedLink"
       type="text"
       value="{{ link }}"
       readonly
     >
-    <button type="button" onclick="copyLink()">Скопировать</button>
+    <button class="copy-btn" onclick="copyLink()">Скопировать</button>
   </div>
   {% endif %}
 
@@ -163,10 +189,16 @@ button:hover {
 
 <script>
 function copyLink() {
-  const input = document.getElementById('result');
+  const input = document.getElementById("generatedLink");
   input.select();
   input.setSelectionRange(0, 99999);
-  document.execCommand("copy");
+  navigator.clipboard.writeText(input.value);
+
+  const btn = document.querySelector(".copy-btn");
+  btn.innerText = "Скопировано ✓";
+  setTimeout(() => {
+    btn.innerText = "Скопировать";
+  }, 2000);
 }
 
 /* автообновление истории */
