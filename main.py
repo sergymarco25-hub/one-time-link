@@ -28,12 +28,26 @@ templates = Jinja2Templates(directory="templates")
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {"links": [], "generated": 0}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
 
-def save_data(data):
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            data = json.load(f)
+    except Exception:
+        return {"links": [], "generated": 0}
+
+    if "links" not in data or not isinstance(data["links"], list):
+        data["links"] = []
+
+    if "generated" not in data or not isinstance(data["generated"], int):
+        data["generated"] = len(data["links"])
+
+    return data
+
+
+def save_data():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
 
 data = load_data()
 sessions = set()
@@ -44,8 +58,10 @@ sessions = set()
 def now_msk():
     return datetime.now(TZ).strftime("%d.%m.%Y %H:%M:%S")
 
+
 def is_logged_in(request: Request):
     return request.cookies.get("session_id") in sessions
+
 
 # =====================
 # LOGIN
@@ -53,6 +69,7 @@ def is_logged_in(request: Request):
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
+
 
 @app.post("/login")
 def login_action(
@@ -72,6 +89,7 @@ def login_action(
         {"request": request, "error": "Неверный логин или пароль"}
     )
 
+
 # =====================
 # HOME
 # =====================
@@ -84,12 +102,13 @@ def home(request: Request):
         "index.html",
         {
             "request": request,
-            "links": list(data["links"].values())[::-1],
+            "links": list(reversed(data["links"])),
             "generated": data["generated"],
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - data["generated"],
         }
     )
+
 
 # =====================
 # CREATE LINK
@@ -121,9 +140,10 @@ def create(
     })
 
     data["generated"] += 1
-    save_data(data)
+    save_data()
 
     return RedirectResponse("/", status_code=302)
+
 
 # =====================
 # OPEN LINK
@@ -131,19 +151,21 @@ def create(
 @app.get("/l/{code}", response_class=HTMLResponse)
 def open_link(request: Request, code: str):
     link = next((l for l in data["links"] if l["code"] == code), None)
+
     if not link or link["status"] == "used":
         return HTMLResponse("Ссылка недействительна", status_code=410)
 
     if link["status"] == "new":
         link["status"] = "opened"
         link["opened_at"] = now_msk()
-        save_data(data)
-        return RedirectResponse(link["target"])
+        save_data()
+        return RedirectResponse(link["target"], status_code=302)
 
     return templates.TemplateResponse(
         "password.html",
         {"request": request, "code": code}
     )
+
 
 # =====================
 # PASSWORD CHECK
@@ -155,6 +177,7 @@ def check_password(
     password: str = Form(...)
 ):
     link = next((l for l in data["links"] if l["code"] == code), None)
+
     if not link:
         return HTMLResponse("Ссылка недействительна", status_code=410)
 
@@ -166,8 +189,10 @@ def check_password(
         )
 
     link["status"] = "used"
-    save_data(data)
-    return RedirectResponse(link["target"])
+    save_data()
+
+    return RedirectResponse(link["target"], status_code=302)
+
 
 
 
