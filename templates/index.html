@@ -1,55 +1,163 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>One-time links</title>
+<title>One-time link</title>
+
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
+  background: #f4f6f8;
+  margin: 0;
+}
+
+.container {
+  max-width: 720px;
+  margin: 60px auto;
+  background: #fff;
+  padding: 32px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 22px;
+  color: #111827;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+}
+
+button {
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+button:hover {
+  background: #4338ca;
+}
+
+.result {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+}
+
+.result input {
+  background: #f9fafb;
+}
+
+.history {
+  margin-top: 28px;
+}
+
+.history h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #374151;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.status-new { background: #facc15; }     /* жёлтый */
+.status-opened { background: #22c55e; }  /* зелёный */
+.status-used { background: #ef4444; }    /* красный */
+
+.history-url {
+  font-size: 14px;
+  color: #374151;
+  word-break: break-all;
+}
+</style>
 </head>
+
 <body>
 
-<form method="post" action="/create">
-  <input name="target_url" placeholder="Вставьте ссылку" required>
-  <button type="submit">Сгенерировать</button>
-</form>
+<div class="container">
+  <h1>Генерация одноразовой ссылки</h1>
 
-<br>
+  <form method="post" action="/create">
+    <div class="form-row">
+      <input type="text" name="target_url" placeholder="Вставьте ссылку" required>
+      <button type="submit">Сгенерировать</button>
+    </div>
+  </form>
 
-<input type="text" value="{{ link }}" readonly style="width:100%;">
-
-<h3>История ссылок</h3>
-
-<div id="history">
-{% for code, item in links.items() %}
-  <div style="display:flex;align-items:center;margin-bottom:6px;">
-    <span style="
-      width:10px;height:10px;border-radius:50%;
-      display:inline-block;margin-right:8px;
-      background:
-        {% if item.state == 'NEW' %}#facc15
-        {% elif item.state == 'OPENED' %}#22c55e
-        {% else %}#ef4444{% endif %};
-    "></span>
-    <span>{{ item.url }}</span>
+  <div class="result">
+    <input id="result" type="text" value="{{ link }}" readonly>
+    <button type="button" onclick="copyLink()">Скопировать</button>
   </div>
-{% endfor %}
+
+  <div class="history">
+    <h2>История ссылок</h2>
+
+    <div id="history">
+      {% for code, item in links.items() %}
+        <div class="history-item">
+          <span class="status-dot
+            {% if item.state == 'NEW' %}status-new
+            {% elif item.state == 'OPENED' %}status-opened
+            {% else %}status-used{% endif %}">
+          </span>
+          <span class="history-url">{{ item.url }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
 </div>
 
 <script>
+function copyLink() {
+  const input = document.getElementById('result');
+  if (!input.value) return;
+  input.select();
+  input.setSelectionRange(0, 99999);
+  document.execCommand("copy");
+}
+
 setInterval(() => {
   fetch('/status')
     .then(r => r.json())
     .then(data => {
-      const h = document.getElementById('history');
-      h.innerHTML = '';
-      for (const k in data) {
-        let c = '#facc15';
-        if (data[k].state === 'OPENED') c = '#22c55e';
-        if (data[k].state === 'USED') c = '#ef4444';
+      const history = document.getElementById('history');
+      history.innerHTML = '';
 
-        h.innerHTML += `
-          <div style="display:flex;align-items:center;margin-bottom:6px;">
-            <span style="width:10px;height:10px;border-radius:50%;
-            display:inline-block;margin-right:8px;background:${c};"></span>
-            <span>${data[k].url}</span>
+      for (const code in data) {
+        let cls = 'status-new';
+        if (data[code].state === 'OPENED') cls = 'status-opened';
+        if (data[code].state === 'USED') cls = 'status-used';
+
+        history.innerHTML += `
+          <div class="history-item">
+            <span class="status-dot ${cls}"></span>
+            <span class="history-url">${data[code].url}</span>
           </div>`;
       }
     });
