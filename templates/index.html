@@ -112,11 +112,12 @@ button:hover {
   <form method="post" action="/create">
     <div class="form-row">
       <input
-        type="text"
-        name="target_url"
-        placeholder="Вставьте ссылку"
-        required
-      >
+  type="text"
+  name="target_url"
+  placeholder="Вставьте ссылку"
+  value="{{ link }}"
+  required
+>
       <button type="submit">Сгенерировать</button>
     </div>
   </form>
