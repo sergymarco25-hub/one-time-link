@@ -40,6 +40,11 @@ input[type="text"] {
 input.main { flex: 1; }
 input.client { max-width: 160px; }
 
+#generatedLink {
+  width: 100%;
+  margin-top: 12px;
+}
+
 button {
   margin-top: 10px;
   padding: 12px;
@@ -48,20 +53,26 @@ button {
   background: #4f46e5;
   color: #fff;
   cursor: pointer;
+  transition: transform .1s ease, box-shadow .1s ease;
+}
+
+button:active {
+  transform: scale(0.96);
 }
 
 .copy-btn {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-.sound-btn {
-  background: #e5e7eb;
-  color: #111;
+.copy-btn.copied {
+  box-shadow: 0 0 0 3px rgba(34,197,94,.4);
 }
 
-#generatedLink {
-  width: 100%;
-  margin-top: 12px;
+.sound-toggle {
+  margin-top: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  color: #4b5563;
 }
 
 .history { margin-top: 30px; }
@@ -69,6 +80,13 @@ button {
 .history-item {
   display: flex;
   margin-bottom: 10px;
+  padding: 6px;
+  border-radius: 8px;
+  transition: background .3s;
+}
+
+.history-item.active {
+  background: #ecfeff;
 }
 
 .status-dot {
@@ -82,6 +100,11 @@ button {
 .status-new { background: #facc15; }
 .status-opened { background: #22c55e; }
 .status-used { background: #ef4444; }
+
+.history-time {
+  font-size: 12px;
+  color: #6b7280;
+}
 </style>
 </head>
 
@@ -100,16 +123,16 @@ button {
 
 {% if link %}
 <input id="generatedLink" value="{{ link }}" readonly>
-<button class="copy-btn" id="copyBtn">Скопировать</button>
+<button class="copy-btn" onclick="copyLink(this)">Скопировать</button>
 {% endif %}
 
-<button class="sound-btn" id="soundBtn">
-  🔊 Звук: <span id="soundState"></span>
-</button>
+<div class="sound-toggle" onclick="toggleSound()">
+  🔊 Звук: <span id="soundState">Вкл</span>
+</div>
 
-<div class="history">
+<div class="history" id="history">
 {% for code, item in links.items() %}
-<div class="history-item">
+<div class="history-item" data-code="{{ code }}">
   <span class="status-dot
     {% if item.state == 'NEW' %}status-new
     {% elif item.state == 'OPENED' %}status-opened
@@ -117,9 +140,9 @@ button {
   </span>
   <div>
     <div>{{ request.base_url }}l/{{ code }} {% if item.client %}— <b>{{ item.client }}</b>{% endif %}</div>
-    <div style="font-size:12px;color:#6b7280">Создана: {{ item.created_at }}</div>
+    <div class="history-time">Создана: {{ item.created_at }}</div>
     {% if item.opened_at %}
-    <div style="font-size:12px;color:#6b7280">Открыта: {{ item.opened_at }}</div>
+    <div class="history-time">Открыта: {{ item.opened_at }}</div>
     {% endif %}
   </div>
 </div>
@@ -127,43 +150,60 @@ button {
 </div>
 </div>
 
+<audio id="notifySound" preload="auto">
+  <source src="/static/notify.mp3" type="audio/mpeg">
+</audio>
+
 <script>
-/* ===== COPY ===== */
-const copyBtn = document.getElementById("copyBtn");
-if (copyBtn) {
-  copyBtn.addEventListener("click", async () => {
-    const val = document.getElementById("generatedLink").value;
-    try {
-      await navigator.clipboard.writeText(val);
-      alert("Ссылка скопирована");
-    } catch {
-      alert("Не удалось скопировать");
+let soundEnabled = true;
+let soundUnlocked = false;
+const audio = document.getElementById("notifySound");
+
+document.addEventListener("click", () => {
+  if (!soundUnlocked) {
+    audio.play().then(() => {
+      audio.pause();
+      audio.currentTime = 0;
+      soundUnlocked = true;
+    }).catch(()=>{});
+  }
+}, { once: true });
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  document.getElementById("soundState").innerText = soundEnabled ? "Вкл" : "Выкл";
+}
+
+function copyLink(btn) {
+  const i = document.getElementById("generatedLink");
+  i.select();
+  document.execCommand("copy");
+  btn.classList.add("copied");
+  setTimeout(()=>btn.classList.remove("copied"), 500);
+}
+
+async function refreshStatus() {
+  const res = await fetch("/status");
+  const data = await res.json();
+
+  let history = document.getElementById("history");
+  let items = [...history.children];
+
+  items.forEach(item => {
+    const code = item.dataset.code;
+    if (data[code] && data[code].state === "OPENED") {
+      item.classList.add("active");
+      history.prepend(item);
+
+      if (soundEnabled && soundUnlocked) {
+        audio.currentTime = 0;
+        audio.play().catch(()=>{});
+      }
     }
   });
 }
 
-/* ===== SOUND ===== */
-let soundEnabled = localStorage.getItem("sound") !== "off";
-const soundState = document.getElementById("soundState");
-const soundBtn = document.getElementById("soundBtn");
-
-const audio = new Audio(
-  "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-);
-
-function updateSoundLabel() {
-  soundState.textContent = soundEnabled ? "Вкл" : "Выкл";
-}
-updateSoundLabel();
-
-soundBtn.addEventListener("click", () => {
-  soundEnabled = !soundEnabled;
-  localStorage.setItem("sound", soundEnabled ? "on" : "off");
-  updateSoundLabel();
-  if (soundEnabled) {
-    audio.play().catch(()=>{});
-  }
-});
+setInterval(refreshStatus, 5000);
 </script>
 
 </body>
