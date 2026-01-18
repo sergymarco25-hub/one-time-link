@@ -40,11 +40,6 @@ input[type="text"] {
 input.main { flex: 1; }
 input.client { max-width: 160px; }
 
-#generatedLink {
-  width: 100%;
-  margin-top: 12px;
-}
-
 button {
   margin-top: 10px;
   padding: 12px;
@@ -53,7 +48,7 @@ button {
   background: #4f46e5;
   color: #fff;
   cursor: pointer;
-  transition: transform .1s ease, box-shadow .1s ease;
+  transition: transform .12s ease, box-shadow .12s ease;
 }
 
 button:active {
@@ -68,20 +63,21 @@ button:active {
   box-shadow: 0 0 0 3px rgba(34,197,94,.4);
 }
 
-.sound-toggle {
-  margin-top: 10px;
-  font-size: 14px;
-  cursor: pointer;
-  color: #4b5563;
+#generatedLink {
+  width: 100%;
+  margin-top: 12px;
 }
 
-.history { margin-top: 30px; }
+.history {
+  margin-top: 30px;
+}
 
 .history-item {
   display: flex;
-  margin-bottom: 10px;
-  padding: 6px;
-  border-radius: 8px;
+  gap: 10px;
+  padding: 8px;
+  border-radius: 10px;
+  margin-bottom: 6px;
   transition: background .3s;
 }
 
@@ -93,7 +89,6 @@ button:active {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  margin-right: 10px;
   margin-top: 6px;
 }
 
@@ -115,8 +110,18 @@ button:active {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input class="main" name="target_url" value="{{ target }}" placeholder="Вставьте ссылку" required>
-    <input class="client" name="client" placeholder="Поле">
+    <input
+      class="main"
+      name="target_url"
+      value="{{ target }}"
+      placeholder="Вставьте ссылку"
+      required
+    >
+    <input
+      class="client"
+      name="client"
+      placeholder="Поле"
+    >
   </div>
   <button type="submit">Сгенерировать</button>
 </form>
@@ -126,23 +131,34 @@ button:active {
 <button class="copy-btn" onclick="copyLink(this)">Скопировать</button>
 {% endif %}
 
-<div class="sound-toggle" onclick="toggleSound()">
-  🔊 Звук: <span id="soundState">Вкл</span>
-</div>
-
 <div class="history" id="history">
-{% for code, item in links.items() %}
-<div class="history-item" data-code="{{ code }}">
+{% for item in links %}
+<div class="history-item {% if item.opened_recent %}active{% endif %}"
+     data-code="{{ item.code }}">
   <span class="status-dot
-    {% if item.state == 'NEW' %}status-new
-    {% elif item.state == 'OPENED' %}status-opened
-    {% else %}status-used{% endif %}">
+    {% if item.opened_recent %}
+      status-opened
+    {% elif item.state == 'NEW' %}
+      status-new
+    {% else %}
+      status-used
+    {% endif %}">
   </span>
+
   <div>
-    <div>{{ request.base_url }}l/{{ code }} {% if item.client %}— <b>{{ item.client }}</b>{% endif %}</div>
-    <div class="history-time">Создана: {{ item.created_at }}</div>
+    <div>
+      {{ request.base_url }}l/{{ item.code }}
+      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+    </div>
+
+    <div class="history-time">
+      Создана: {{ item.created_at }}
+    </div>
+
     {% if item.opened_at %}
-    <div class="history-time">Открыта: {{ item.opened_at }}</div>
+    <div class="history-time">
+      Открыта: {{ item.opened_at }}
+    </div>
     {% endif %}
   </div>
 </div>
@@ -150,55 +166,27 @@ button:active {
 </div>
 </div>
 
-<audio id="notifySound" preload="auto">
-  <source src="/static/notify.mp3" type="audio/mpeg">
-</audio>
-
 <script>
-let soundEnabled = true;
-let soundUnlocked = false;
-const audio = document.getElementById("notifySound");
-
-document.addEventListener("click", () => {
-  if (!soundUnlocked) {
-    audio.play().then(() => {
-      audio.pause();
-      audio.currentTime = 0;
-      soundUnlocked = true;
-    }).catch(()=>{});
-  }
-}, { once: true });
-
-function toggleSound() {
-  soundEnabled = !soundEnabled;
-  document.getElementById("soundState").innerText = soundEnabled ? "Вкл" : "Выкл";
-}
-
 function copyLink(btn) {
-  const i = document.getElementById("generatedLink");
-  i.select();
+  const input = document.getElementById("generatedLink");
+  input.select();
+  input.setSelectionRange(0, 99999);
   document.execCommand("copy");
+
   btn.classList.add("copied");
-  setTimeout(()=>btn.classList.remove("copied"), 500);
+  setTimeout(() => btn.classList.remove("copied"), 400);
 }
 
 async function refreshStatus() {
   const res = await fetch("/status");
   const data = await res.json();
+  const history = document.getElementById("history");
 
-  let history = document.getElementById("history");
-  let items = [...history.children];
-
-  items.forEach(item => {
+  [...history.children].forEach(item => {
     const code = item.dataset.code;
-    if (data[code] && data[code].state === "OPENED") {
+    if (data[code] && data[code].opened_recent) {
       item.classList.add("active");
       history.prepend(item);
-
-      if (soundEnabled && soundUnlocked) {
-        audio.currentTime = 0;
-        audio.play().catch(()=>{});
-      }
     }
   });
 }
@@ -208,7 +196,6 @@ setInterval(refreshStatus, 5000);
 
 </body>
 </html>
-
 
 
 
