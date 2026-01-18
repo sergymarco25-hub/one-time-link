@@ -2,80 +2,137 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Генератор ссылок</title>
+<title>One-time link</title>
 
-<audio id="notifySound">
-  <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg">
-</audio>
-
-<script>
-let lastOpened = "{{ links[0].opened_at if links else '' }}";
-
-setInterval(async () => {
-  const res = await fetch("/");
-  const text = await res.text();
-
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(text, "text/html");
-  const newOpened = doc.querySelector(".opened-at")?.innerText;
-
-  if (newOpened && newOpened !== lastOpened) {
-    playSound();
-    lastOpened = newOpened;
-  }
-}, 5000);
-
-function playSound() {
-  if (localStorage.getItem("sound") === "off") return;
-  const audio = document.getElementById("notifySound");
-  audio.currentTime = 0;
-  audio.play().catch(()=>{});
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
+  background: #f4f6f8;
+  margin: 0;
 }
-</script>
 
+.container {
+  max-width: 720px;
+  margin: 60px auto;
+  background: #fff;
+  padding: 32px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 22px;
+}
+
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+input[type="text"] {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  box-sizing: border-box;
+}
+
+input.main { flex: 1; }
+input.client { max-width: 160px; }
+
+#generatedLink {
+  width: 100%;
+  margin-top: 12px;
+}
+
+button {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  cursor: pointer;
+}
+
+.copy-btn {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+
+.history { margin-top: 30px; }
+
+.history-item {
+  display: flex;
+  margin-bottom: 10px;
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
+
+.status-new { background: #facc15; }
+.status-opened { background: #22c55e; }
+.status-used { background: #ef4444; }
+
+.history-time {
+  font-size: 12px;
+  color: #6b7280;
+}
+</style>
 </head>
+
 <body>
 
-<label>
-  <input type="checkbox" id="soundToggle" checked>
-  🔔 Звук уведомлений
-</label>
-
-<script>
-const toggle = document.getElementById("soundToggle");
-if (localStorage.getItem("sound") === "off") toggle.checked = false;
-
-toggle.onchange = () => {
-  localStorage.setItem("sound", toggle.checked ? "on" : "off");
-};
-</script>
-
-<hr>
+<div class="container">
+<h1>Генерация ссылки</h1>
 
 <form method="post" action="/create">
-  <input name="target_url" placeholder="Ссылка для генерации" required>
-  <input name="label" placeholder="Поле">
+  <div class="form-row">
+    <input class="main" name="target_url" value="{{ target }}" placeholder="Вставьте ссылку" required>
+    <input class="client" name="client" placeholder="Поле">
+  </div>
   <button type="submit">Сгенерировать</button>
 </form>
 
-<hr>
+{% if link %}
+<input id="generatedLink" value="{{ link }}" readonly>
+<button class="copy-btn" onclick="copyLink()">Скопировать</button>
+{% endif %}
 
-{% for l in links %}
-<div>
-  <span>
-    {% if l.status == "new" %}🟡{% elif l.status == "opened" %}🟢{% else %}🔴{% endif %}
+<div class="history">
+{% for code, item in links.items() %}
+<div class="history-item">
+  <span class="status-dot
+    {% if item.state == 'NEW' %}status-new
+    {% elif item.state == 'OPENED' %}status-opened
+    {% else %}status-used{% endif %}">
   </span>
-  {{ l.short }} — <b>{{ l.label }}</b><br>
-  Создана: {{ l.created_at }}<br>
-  {% if l.opened_at %}
-    <span class="opened-at">Открыта: {{ l.opened_at }}</span>
-  {% endif %}
+  <div>
+    <div>{{ request.base_url }}l/{{ code }} {% if item.client %}— <b>{{ item.client }}</b>{% endif %}</div>
+    <div class="history-time">Создана: {{ item.created_at }}</div>
+    {% if item.opened_at %}
+    <div class="history-time">Открыта: {{ item.opened_at }}</div>
+    {% endif %}
+  </div>
 </div>
-<hr>
 {% endfor %}
+</div>
+</div>
+
+<script>
+function copyLink() {
+  const i = document.getElementById("generatedLink");
+  i.select();
+  document.execCommand("copy");
+}
+</script>
 
 </body>
 </html>
+
 
 
 
