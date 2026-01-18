@@ -5,20 +5,26 @@ from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+# =====================
+# НАСТРОЙКИ
+# =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
-REOPEN_PASSWORD = "1111"
+
+REOPEN_PASSWORD = "1111"   # пароль для второго входа
 
 DATA_FILE = Path("data.json")
 
+# =====================
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 links = {}
 sessions = set()
 
-
-# ---------- DATA ----------
+# =====================
+# DATA
+# =====================
 def load_data():
     if DATA_FILE.exists():
         with open(DATA_FILE, "r", encoding="utf-8") as f:
@@ -28,13 +34,19 @@ def load_data():
 
 def save_data():
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump({"links": links}, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {"links": links},
+            f,
+            ensure_ascii=False,
+            indent=2
+        )
 
 
 load_data()
 
-
-# ---------- AUTH ----------
+# =====================
+# AUTH
+# =====================
 def is_logged(request: Request):
     return request.cookies.get("sid") in sessions
 
@@ -49,13 +61,20 @@ def login(username: str = Form(...), password: str = Form(...)):
     if username == ADMIN_USER and password == ADMIN_PASS:
         sid = secrets.token_urlsafe(16)
         sessions.add(sid)
-        r = RedirectResponse("/", status_code=302)
-        r.set_cookie("sid", sid, httponly=True, samesite="lax")
-        return r
+        resp = RedirectResponse("/", status_code=302)
+        resp.set_cookie(
+            "sid",
+            sid,
+            httponly=True,
+            secure=True,
+            samesite="None"
+        )
+        return resp
     return HTMLResponse("Неверный логин или пароль", status_code=403)
 
-
-# ---------- HOME ----------
+# =====================
+# HOME
+# =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     if not is_logged(request):
@@ -71,17 +90,19 @@ def home(request: Request):
         }
     )
 
-
-# ---------- CREATE ----------
+# =====================
+# CREATE LINK
+# =====================
 @app.post("/create")
 def create(request: Request, target_url: str = Form(...)):
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
     code = secrets.token_urlsafe(3)
+
     links[code] = {
         "url": target_url,
-        "state": "NEW"
+        "state": "NEW"   # NEW → OPENED → USED
     }
     save_data()
 
@@ -90,13 +111,15 @@ def create(request: Request, target_url: str = Form(...)):
     resp.set_cookie(
         "last_link",
         f"{base}/l/{code}",
-        max_age=300,
-        samesite="lax"
+        max_age=600,
+        secure=True,
+        samesite="None"
     )
     return resp
 
-
-# ---------- LANDING ----------
+# =====================
+# LANDING
+# =====================
 @app.get("/l/{code}", response_class=HTMLResponse)
 def landing(request: Request, code: str):
     if code not in links:
@@ -110,16 +133,23 @@ def landing(request: Request, code: str):
     if state == "OPENED":
         return templates.TemplateResponse(
             "password.html",
-            {"request": request, "code": code}
+            {
+                "request": request,
+                "code": code
+            }
         )
 
     return templates.TemplateResponse(
         "open.html",
-        {"request": request, "code": code}
+        {
+            "request": request,
+            "code": code
+        }
     )
 
-
-# ---------- AUTO OPEN ----------
+# =====================
+# AUTO OPEN (GET only)
+# =====================
 @app.get("/open/{code}")
 def open_link(code: str):
     if code not in links:
@@ -137,15 +167,19 @@ def open_link(code: str):
 
     return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-
-# ---------- PASSWORD ----------
+# =====================
+# PASSWORD
+# =====================
 @app.post("/check-password")
 def check_password(
     request: Request,
     code: str = Form(...),
     password: str = Form(...)
 ):
-    if code not in links or links[code]["state"] != "OPENED":
+    if code not in links:
+        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+
+    if links[code]["state"] != "OPENED":
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if password != REOPEN_PASSWORD:
@@ -162,7 +196,9 @@ def check_password(
     url = links[code]["url"]
     links[code]["state"] = "USED"
     save_data()
+
     return RedirectResponse(url, status_code=302)
+
 
 
 
