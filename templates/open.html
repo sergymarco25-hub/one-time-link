@@ -1,59 +1,27 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Перейти на сайт</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <style>
-        body {
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: #f2f4f8;
-            font-family: system-ui, sans-serif;
-        }
-        .box {
-            background: #fff;
-            padding: 40px;
-            border-radius: 16px;
-            width: 100%;
-            max-width: 420px;
-            text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,.1);
-        }
-        button {
-            width: 100%;
-            padding: 18px;
-            font-size: 18px;
-            border-radius: 12px;
-            border: none;
-            background: #2563eb;
-            color: #fff;
-        }
-    </style>
-
-    {% if auto %}
-    <script>
-        setTimeout(() => {
-            document.getElementById("open-form").submit();
-        }, 2000);
-    </script>
-    {% endif %}
+<meta charset="utf-8">
+<title>Переход</title>
 </head>
-<body>
+<body style="font-family:Arial; text-align:center; padding-top:80px;">
 
-<div class="box">
-    <h2>Перейти на сайт</h2>
-    <p>Вы будете автоматически перенаправлены</p>
+<h2>Перейти на сайт</h2>
+<p>Вы будете перенаправлены автоматически</p>
 
-    <form method="post" action="/open" id="open-form">
-        <input type="hidden" name="code" value="{{ code }}">
-        <button type="submit">Продолжить</button>
-    </form>
-</div>
+<form id="openForm" method="post" action="/open">
+  <input type="hidden" name="code" value="{{ code }}">
+  <button type="submit" style="padding:15px 30px; font-size:18px;">
+    Продолжить
+  </button>
+</form>
+
+<script>
+setTimeout(() => {
+  document.getElementById("openForm").submit();
+}, 2000);
+</script>
 
 </body>
 </html>
+
