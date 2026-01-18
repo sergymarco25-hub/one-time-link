@@ -59,23 +59,21 @@ button {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-.copy-btn:active {
-  transform: scale(0.97);
-}
-
 .history {
   margin-top: 30px;
 }
 
 .history-item {
   display: flex;
-  margin-bottom: 12px;
-  padding: 6px;
+  padding: 10px;
   border-radius: 10px;
+  margin-bottom: 10px;
+  transition: background 0.3s ease;
 }
 
-.highlight {
+.history-item.opened {
   background: #ecfdf5;
+  border-left: 4px solid #22c55e;
 }
 
 .status-dot {
@@ -86,10 +84,9 @@ button {
   margin-top: 6px;
 }
 
-/* КРУЖКИ */
-.status-new { background: #facc15; }     /* жёлтый */
-.status-opened { background: #22c55e; }  /* зелёный */
-.status-used { background: #ef4444; }    /* красный */
+.status-new { background: #facc15; }
+.status-opened { background: #22c55e; }
+.status-used { background: #ef4444; }
 
 .history-time {
   font-size: 12px;
@@ -105,18 +102,8 @@ button {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input
-      class="main"
-      name="target_url"
-      value="{{ target }}"
-      placeholder="Вставьте ссылку"
-      required
-    >
-    <input
-      class="client"
-      name="client"
-      placeholder="Поле"
-    >
+    <input class="main" name="target_url" value="{{ target }}" placeholder="Вставьте ссылку" required>
+    <input class="client" name="client" placeholder="Поле">
   </div>
   <button type="submit">Сгенерировать</button>
 </form>
@@ -128,38 +115,19 @@ button {
 
 <div class="history">
 {% for code, item in links.items() %}
-<div class="history-item {% if item.opened_recent %}highlight{% endif %}">
-
-  <!-- КРУЖОК = ТОЛЬКО СОСТОЯНИЕ -->
+<div class="history-item {% if item.state == 'OPENED' %}opened{% endif %}" data-code="{{ code }}">
   <span class="status-dot
-    {% if item.state == 'NEW' %}
-      status-new
-    {% elif item.state == 'OPENED' %}
-      status-opened
-    {% elif item.state == 'USED' %}
-      status-used
-    {% endif %}
-  "></span>
-
+    {% if item.state == 'NEW' %}status-new
+    {% elif item.state == 'OPENED' %}status-opened
+    {% else %}status-used{% endif %}">
+  </span>
   <div>
-    <div>
-      {{ request.base_url }}l/{{ code }}
-      {% if item.client %}
-        — <b>{{ item.client }}</b>
-      {% endif %}
-    </div>
-
-    <div class="history-time">
-      Создана: {{ item.created_at }}
-    </div>
-
+    <div>{{ request.base_url }}l/{{ code }} {% if item.client %}— <b>{{ item.client }}</b>{% endif %}</div>
+    <div class="history-time">Создана: {{ item.created_at }}</div>
     {% if item.opened_at %}
-    <div class="history-time">
-      Открыта: {{ item.opened_at }}
-    </div>
+    <div class="history-time">Открыта: {{ item.opened_at }}</div>
     {% endif %}
   </div>
-
 </div>
 {% endfor %}
 </div>
@@ -168,21 +136,47 @@ button {
 
 <script>
 function copyLink() {
-  const input = document.getElementById("generatedLink");
-  input.select();
-  input.setSelectionRange(0, 99999);
+  const i = document.getElementById("generatedLink");
+  i.select();
   document.execCommand("copy");
-
-  const btn = document.querySelector(".copy-btn");
-  btn.innerText = "Скопировано ✓";
-  setTimeout(() => btn.innerText = "Скопировать", 1500);
 }
+
+async function refreshStatus() {
+  try {
+    const res = await fetch("/status");
+    if (!res.ok) return;
+
+    const data = await res.json();
+    const container = document.querySelector(".history");
+    if (!container) return;
+
+    const items = Array.from(container.children);
+
+    items.sort((a, b) => {
+      const aState = data[a.dataset.code]?.state;
+      const bState = data[b.dataset.code]?.state;
+
+      if (aState === "OPENED" && bState !== "OPENED") return -1;
+      if (aState !== "OPENED" && bState === "OPENED") return 1;
+      return 0;
+    });
+
+    items.forEach(el => container.appendChild(el));
+
+    items.forEach(el => {
+      const state = data[el.dataset.code]?.state;
+      if (state === "OPENED") {
+        el.classList.add("opened");
+      }
+    });
+
+  } catch (e) {}
+}
+
+setInterval(refreshStatus, 5000);
 </script>
 
 </body>
 </html>
-
-
-
 
 
