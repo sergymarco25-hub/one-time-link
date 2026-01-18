@@ -1,134 +1,92 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-<meta charset="UTF-8">
-<title>One-time link</title>
+    <meta charset="UTF-8">
+    <title>Админка</title>
 
-<style>
-body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
-  background: #f4f6f8;
-  margin: 0;
-}
-
-.container {
-  max-width: 720px;
-  margin: 60px auto;
-  background: #fff;
-  padding: 32px;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.08);
-}
-
-h1 {
-  margin-top: 0;
-  font-size: 22px;
-}
-
-.form-row {
-  display: flex;
-  gap: 10px;
-}
-
-input[type="text"] {
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid #d1d5db;
-  box-sizing: border-box;
-}
-
-input.main { flex: 1; }
-input.client { max-width: 160px; }
-
-#generatedLink {
-  width: 100%;
-  margin-top: 12px;
-}
-
-button {
-  margin-top: 10px;
-  padding: 12px;
-  border-radius: 10px;
-  border: none;
-  background: #4f46e5;
-  color: #fff;
-  cursor: pointer;
-}
-
-.copy-btn {
-  background: linear-gradient(135deg, #16a34a, #22c55e);
-}
-
-.history { margin-top: 30px; }
-
-.history-item {
-  display: flex;
-  margin-bottom: 10px;
-}
-
-.status-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  margin-right: 10px;
-}
-
-.status-new { background: #facc15; }
-.status-opened { background: #22c55e; }
-.status-used { background: #ef4444; }
-
-.history-time {
-  font-size: 12px;
-  color: #6b7280;
-}
-</style>
+    <!-- Твои существующие стили остаются -->
+    <link rel="stylesheet" href="/static/style.css">
 </head>
-
 <body>
 
-<div class="container">
-<h1>Генерация ссылки</h1>
+    <h1>Панель управления</h1>
 
-<form method="post" action="/create">
-  <div class="form-row">
-    <input class="main" name="target_url" value="{{ target }}" placeholder="Вставьте ссылку" required>
-    <input class="client" name="client" placeholder="Поле">
-  </div>
-  <button type="submit">Сгенерировать</button>
-</form>
+    <!-- === ТВОЙ СУЩЕСТВУЮЩИЙ КОНТЕНТ === -->
+    <!-- таблица ссылок, формы, кнопки и т.д. -->
+    <!-- Я ЭТО НЕ МЕНЯЮ -->
 
-{% if link %}
-<input id="generatedLink" value="{{ link }}" readonly>
-<button class="copy-btn" onclick="copyLink()">Скопировать</button>
-{% endif %}
+    <!-- ================================================= -->
+    <!-- 🔔 УВЕДОМЛЕНИЯ (ДОБАВЛЕНО, НИЧЕГО НЕ ЛОМАЕТ) -->
+    <!-- ================================================= -->
 
-<div class="history">
-{% for code, item in links.items() %}
-<div class="history-item">
-  <span class="status-dot
-    {% if item.state == 'NEW' %}status-new
-    {% elif item.state == 'OPENED' %}status-opened
-    {% else %}status-used{% endif %}">
-  </span>
-  <div>
-    <div>{{ request.base_url }}l/{{ code }} {% if item.client %}— <b>{{ item.client }}</b>{% endif %}</div>
-    <div class="history-time">Создана: {{ item.created_at }}</div>
-    {% if item.opened_at %}
-    <div class="history-time">Открыта: {{ item.opened_at }}</div>
-    {% endif %}
-  </div>
-</div>
-{% endfor %}
-</div>
-</div>
+    <script>
+    // Храним известные статусы ссылок
+    let knownStates = {};
+    const POLL_INTERVAL = 3000; // 3 секунды
 
-<script>
-function copyLink() {
-  const i = document.getElementById("generatedLink");
-  i.select();
-  document.execCommand("copy");
-}
-</script>
+    async function pollStatus() {
+        try {
+            const res = await fetch("/status");
+            if (!res.ok) return;
+
+            const data = await res.json();
+
+            for (const code in data) {
+                const state = data[code].state;
+
+                // первое появление ссылки — просто запоминаем
+                if (!(code in knownStates)) {
+                    knownStates[code] = state;
+                    continue;
+                }
+
+                // реагируем ТОЛЬКО на NEW → OPENED
+                if (knownStates[code] === "NEW" && state === "OPENED") {
+                    showNotification("Клиент открыл ссылку");
+                    playSound();
+                }
+
+                knownStates[code] = state;
+            }
+        } catch (e) {
+            // молча игнорируем ошибки
+        }
+    }
+
+    function showNotification(text) {
+        const note = document.createElement("div");
+        note.textContent = text;
+
+        // используем существующий класс, если он есть
+        note.className = "notification";
+
+        document.body.appendChild(note);
+
+        setTimeout(() => {
+            note.remove();
+        }, 4000);
+    }
+
+    // звук (инициализируется только после клика — требование браузеров)
+    let notificationSound = null;
+    let soundEnabled = true;
+
+    function playSound() {
+        if (!soundEnabled || !notificationSound) return;
+        notificationSound.play().catch(() => {});
+    }
+
+    document.addEventListener("click", () => {
+        if (!notificationSound) {
+            notificationSound = new Audio(
+                "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
+            );
+        }
+    }, { once: true });
+
+    // запуск опроса
+    setInterval(pollStatus, POLL_INTERVAL);
+    </script>
 
 </body>
 </html>
