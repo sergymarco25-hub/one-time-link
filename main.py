@@ -18,42 +18,24 @@ app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
 # =====================
-# ХРАНЕНИЕ
-# =====================
-links = {}                 # code -> {url, state}
-sessions = set()
-last_generated_link = ""   # ПОСЛЕДНЯЯ ССЫЛКА (СЕРВЕРНО)
-
-# =====================
-# DATA
+# DATA UTILS
 # =====================
 def load_data():
-    global last_generated_link
-    if DATA_FILE.exists():
-        with open(DATA_FILE, "r", encoding="utf-8") as f:
-            data = json.load(f)
-            links.update(data.get("links", {}))
-            last_generated_link = data.get("last_link", "")
+    if not DATA_FILE.exists():
+        return {"links": {}, "last_link": "", "sessions": {}}
+    with open(DATA_FILE, "r", encoding="utf-8") as f:
+        return json.load(f)
 
-def save_data():
+def save_data(data):
     with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(
-            {
-                "links": links,
-                "last_link": last_generated_link
-            },
-            f,
-            ensure_ascii=False,
-            indent=2
-        )
-
-load_data()
+        json.dump(data, f, ensure_ascii=False, indent=2)
 
 # =====================
 # AUTH
 # =====================
-def is_logged(request: Request):
-    return request.cookies.get("sid") in sessions
+def is_logged(request: Request, data):
+    sid = request.cookies.get("sid")
+    return sid in data["sessions"]
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
@@ -61,75 +43,80 @@ def login_page(request: Request):
 
 @app.post("/login")
 def login(username: str = Form(...), password: str = Form(...)):
-    if username == ADMIN_USER and password == ADMIN_PASS:
-        sid = secrets.token_urlsafe(16)
-        sessions.add(sid)
-        r = RedirectResponse("/", status_code=302)
-        r.set_cookie("sid", sid, httponly=True, secure=True, samesite="None")
-        return r
-    return HTMLResponse("Неверный логин или пароль", status_code=403)
+    if username != ADMIN_USER or password != ADMIN_PASS:
+        return HTMLResponse("Неверный логин или пароль", status_code=403)
+
+    data = load_data()
+    sid = secrets.token_urlsafe(16)
+    data["sessions"][sid] = True
+    save_data(data)
+
+    resp = RedirectResponse("/", status_code=302)
+    resp.set_cookie("sid", sid, httponly=True, secure=True, samesite="None")
+    return resp
 
 # =====================
 # HOME
 # =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    if not is_logged(request):
+    data = load_data()
+    if not is_logged(request, data):
         return RedirectResponse("/login", status_code=302)
 
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
-            "link": last_generated_link,
-            "links": links   # <<< ВОЗВРАЩАЕМ ИСТОРИЮ
+            "link": data["last_link"],
+            "links": data["links"]
         }
     )
 
 # =====================
-# CREATE
+# CREATE LINK
 # =====================
 @app.post("/create")
 def create(request: Request, target_url: str = Form(...)):
-    global last_generated_link
-
-    if not is_logged(request):
+    data = load_data()
+    if not is_logged(request, data):
         return RedirectResponse("/login", status_code=302)
 
     code = secrets.token_urlsafe(3)
-    links[code] = {
+    data["links"][code] = {
         "url": target_url,
         "state": "NEW"
     }
 
     base = str(request.base_url).rstrip("/")
-    last_generated_link = f"{base}/l/{code}"
+    data["last_link"] = f"{base}/l/{code}"
 
-    save_data()
-
+    save_data(data)
     return RedirectResponse("/", status_code=302)
 
 # =====================
-# STATUS API (ДЛЯ АВТООБНОВЛЕНИЯ)
+# STATUS API
 # =====================
 @app.get("/status")
 def status():
-    return JSONResponse(links)
+    data = load_data()
+    return JSONResponse(data["links"])
 
 # =====================
 # LANDING
 # =====================
 @app.get("/l/{code}", response_class=HTMLResponse)
 def landing(request: Request, code: str):
-    if code not in links:
+    data = load_data()
+    link = data["links"].get(code)
+
+    if not link:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    state = links[code]["state"]
-
-    if state == "USED":
+    if link["state"] == "USED":
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    if state == "OPENED":
+    if link["state"] == "OPENED":
         return templates.TemplateResponse(
             "password.html",
             {"request": request, "code": code}
@@ -145,14 +132,15 @@ def landing(request: Request, code: str):
 # =====================
 @app.get("/open/{code}")
 def open_link(code: str):
-    if code not in links:
-        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+    data = load_data()
+    link = data["links"].get(code)
 
-    link = links[code]
+    if not link:
+        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if link["state"] == "NEW":
         link["state"] = "OPENED"
-        save_data()
+        save_data(data)
         return RedirectResponse(link["url"], status_code=302)
 
     if link["state"] == "OPENED":
@@ -169,7 +157,10 @@ def check_password(
     code: str = Form(...),
     password: str = Form(...)
 ):
-    if code not in links or links[code]["state"] != "OPENED":
+    data = load_data()
+    link = data["links"].get(code)
+
+    if not link or link["state"] != "OPENED":
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if password != REOPEN_PASSWORD:
@@ -179,10 +170,10 @@ def check_password(
             status_code=403
         )
 
-    url = links[code]["url"]
-    links[code]["state"] = "USED"
-    save_data()
-    return RedirectResponse(url, status_code=302)
+    link["state"] = "USED"
+    save_data(data)
+    return RedirectResponse(link["url"], status_code=302)
+
 
 
 
