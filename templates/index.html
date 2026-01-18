@@ -59,11 +59,30 @@ button {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
+.sound-toggle {
+  margin-top: 10px;
+  background: #e5e7eb;
+  color: #111;
+}
+
 .history { margin-top: 30px; }
 
 .history-item {
   display: flex;
   margin-bottom: 10px;
+  padding: 8px;
+  border-radius: 8px;
+  transition: background .3s, box-shadow .3s;
+}
+
+.history-item.highlight {
+  box-shadow: 0 0 0 2px #22c55e inset;
+  animation: pulse 1s ease-in-out 2;
+}
+
+@keyframes pulse {
+  0% { background: #ecfdf5; }
+  100% { background: transparent; }
 }
 
 .status-dot {
@@ -82,7 +101,6 @@ button {
   color: #6b7280;
 }
 
-/* уведомление — НЕ меняет дизайн */
 .notification {
   position: fixed;
   right: 20px;
@@ -116,9 +134,13 @@ button {
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
-<div class="history">
+<button class="sound-toggle" onclick="toggleSound()">
+  🔊 Звук: <span id="soundState"></span>
+</button>
+
+<div class="history" id="history">
 {% for code, item in links.items() %}
-<div class="history-item">
+<div class="history-item" data-code="{{ code }}">
   <span class="status-dot
     {% if item.state == 'NEW' %}status-new
     {% elif item.state == 'OPENED' %}status-opened
@@ -143,60 +165,39 @@ function copyLink() {
   document.execCommand("copy");
 }
 
-/* ============================
-   УВЕДОМЛЕНИЕ ОТКРЫТИЯ ССЫЛКИ
-   ============================ */
-
-let knownStates = {};
-const POLL_INTERVAL = 3000;
+/* ===== ЗВУК ===== */
+let soundEnabled = localStorage.getItem("sound") !== "off";
 let sound = null;
+
+function updateSoundUI() {
+  document.getElementById("soundState").textContent = soundEnabled ? "Вкл" : "Выкл";
+}
+updateSoundUI();
+
+function toggleSound() {
+  soundEnabled = !soundEnabled;
+  localStorage.setItem("sound", soundEnabled ? "on" : "off");
+  updateSoundUI();
+}
 
 document.addEventListener("click", () => {
   if (!sound) {
-    sound = new Audio(
-      "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"
-    );
+    sound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
   }
 }, { once: true });
+
+/* ===== УВЕДОМЛЕНИЯ + ПОДСВЕТКА ===== */
+let knownStates = {};
+const POLL_INTERVAL = 3000;
 
 async function pollStatus() {
   try {
     const res = await fetch("/status");
     if (!res.ok) return;
-
     const data = await res.json();
 
     for (const code in data) {
       const state = data[code].state;
-
-      if (!(code in knownStates)) {
-        knownStates[code] = state;
-        continue;
-      }
-
-      if (knownStates[code] === "NEW" && state === "OPENED") {
-        notify("Клиент открыл ссылку");
-        if (sound) sound.play().catch(() => {});
-      }
-
-      knownStates[code] = state;
-    }
-  } catch (e) {}
-}
-
-function notify(text) {
-  const n = document.createElement("div");
-  n.className = "notification";
-  n.textContent = text;
-  document.body.appendChild(n);
-  setTimeout(() => n.remove(), 4000);
-}
-
-setInterval(pollStatus, POLL_INTERVAL);
-</script>
-
-</body>
-</html>
 
 
 
