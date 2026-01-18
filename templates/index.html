@@ -110,11 +110,13 @@ button:hover {
     </div>
   </form>
 
+  <!-- РЕЗУЛЬТАТ (ССЫЛКА СОХРАНЯЕТСЯ) -->
   <div class="result">
     <input id="result" type="text" value="{{ link }}" readonly>
     <button type="button" onclick="copyLink()">Скопировать</button>
   </div>
 
+  <!-- ИСТОРИЯ -->
   <div class="history">
     <h2>История ссылок</h2>
 
@@ -126,7 +128,9 @@ button:hover {
             {% elif item.state == 'OPENED' %}status-opened
             {% else %}status-used{% endif %}">
           </span>
-          <span class="history-url">{{ item.url }}</span>
+          <span class="history-url">
+            {{ request.base_url }}l/{{ code }}
+          </span>
         </div>
       {% endfor %}
     </div>
@@ -134,6 +138,7 @@ button:hover {
 </div>
 
 <script>
+/* КОПИРОВАНИЕ */
 function copyLink() {
   const input = document.getElementById('result');
   if (!input.value) return;
@@ -142,11 +147,14 @@ function copyLink() {
   document.execCommand("copy");
 }
 
+/* АВТООБНОВЛЕНИЕ СТАТУСОВ */
 setInterval(() => {
   fetch('/status')
     .then(r => r.json())
     .then(data => {
       const history = document.getElementById('history');
+      if (!history) return;
+
       history.innerHTML = '';
 
       for (const code in data) {
@@ -157,8 +165,11 @@ setInterval(() => {
         history.innerHTML += `
           <div class="history-item">
             <span class="status-dot ${cls}"></span>
-            <span class="history-url">${data[code].url}</span>
-          </div>`;
+            <span class="history-url">
+              ${window.location.origin}/l/${code}
+            </span>
+          </div>
+        `;
       }
     });
 }, 4000);
