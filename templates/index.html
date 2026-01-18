@@ -60,7 +60,6 @@ button {
 }
 
 .sound-toggle {
-  margin-top: 10px;
   background: #e5e7eb;
   color: #111;
 }
@@ -72,17 +71,12 @@ button {
   margin-bottom: 10px;
   padding: 8px;
   border-radius: 8px;
-  transition: background .3s, box-shadow .3s;
+  transition: box-shadow .3s, background .3s;
 }
 
 .history-item.highlight {
   box-shadow: 0 0 0 2px #22c55e inset;
-  animation: pulse 1s ease-in-out 2;
-}
-
-@keyframes pulse {
-  0% { background: #ecfdf5; }
-  100% { background: transparent; }
+  background: #ecfdf5;
 }
 
 .status-dot {
@@ -110,7 +104,6 @@ button {
   padding: 12px 16px;
   border-radius: 10px;
   font-size: 14px;
-  opacity: 0.95;
   z-index: 9999;
 }
 </style>
@@ -131,10 +124,10 @@ button {
 
 {% if link %}
 <input id="generatedLink" value="{{ link }}" readonly>
-<button class="copy-btn" onclick="copyLink()">Скопировать</button>
+<button class="copy-btn" id="copyBtn">Скопировать</button>
 {% endif %}
 
-<button class="sound-toggle" onclick="toggleSound()">
+<button class="sound-toggle" id="soundToggle">
   🔊 Звук: <span id="soundState"></span>
 </button>
 
@@ -159,46 +152,50 @@ button {
 </div>
 
 <script>
-function copyLink() {
-  const i = document.getElementById("generatedLink");
-  i.select();
-  document.execCommand("copy");
+/* ================= COPY ================= */
+const copyBtn = document.getElementById("copyBtn");
+if (copyBtn) {
+  copyBtn.addEventListener("click", () => {
+    const input = document.getElementById("generatedLink");
+    if (!input) return;
+    navigator.clipboard.writeText(input.value).then(() => {
+      notify("Ссылка скопирована");
+    });
+  });
 }
 
-/* ===== ЗВУК ===== */
+/* ================= SOUND ================= */
 let soundEnabled = localStorage.getItem("sound") !== "off";
 let sound = null;
 
+const soundStateEl = document.getElementById("soundState");
+const soundToggle = document.getElementById("soundToggle");
+
 function updateSoundUI() {
-  document.getElementById("soundState").textContent = soundEnabled ? "Вкл" : "Выкл";
+  if (soundStateEl) {
+    soundStateEl.textContent = soundEnabled ? "Вкл" : "Выкл";
+  }
 }
+
 updateSoundUI();
 
-function toggleSound() {
-  soundEnabled = !soundEnabled;
-  localStorage.setItem("sound", soundEnabled ? "on" : "off");
-  updateSoundUI();
+if (soundToggle) {
+  soundToggle.addEventListener("click", () => {
+    soundEnabled = !soundEnabled;
+    localStorage.setItem("sound", soundEnabled ? "on" : "off");
+    updateSoundUI();
+
+    if (!sound) {
+      sound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+    }
+  });
 }
 
-document.addEventListener("click", () => {
-  if (!sound) {
-    sound = new Audio("https://actions.google.com/sounds/v1/alarms/beep_short.ogg");
+function playSound() {
+  if (soundEnabled && sound) {
+    sound.play().catch(() => {});
   }
-}, { once: true });
-
-/* ===== УВЕДОМЛЕНИЯ + ПОДСВЕТКА ===== */
-let knownStates = {};
-const POLL_INTERVAL = 3000;
-
-async function pollStatus() {
-  try {
-    const res = await fetch("/status");
-    if (!res.ok) return;
-    const data = await res.json();
-
-    for (const code in data) {
-      const state = data[code].state;
-
+}
 
 
 
