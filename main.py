@@ -84,7 +84,7 @@ def home(request: Request):
         "index.html",
         {
             "request": request,
-            "links": data["links"][::-1],
+            "links": list(data["links"].values())[::-1],
             "generated": data["generated"],
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - data["generated"],
