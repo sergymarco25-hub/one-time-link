@@ -34,6 +34,7 @@ def init_db():
         url TEXT,
         state TEXT,
         created_at TEXT,
+        opened_at TEXT,
         client TEXT
     )
     """)
@@ -97,7 +98,7 @@ def home(request: Request):
     db = get_db()
     cur = db.cursor()
     cur.execute("""
-        SELECT code, url, state, created_at, client
+        SELECT code, url, state, created_at, opened_at, client
         FROM links
         ORDER BY created_at DESC
     """)
@@ -109,9 +110,10 @@ def home(request: Request):
             "url": url,
             "state": state,
             "created_at": created_at,
+            "opened_at": opened_at,
             "client": client
         }
-        for code, url, state, created_at, client in rows
+        for code, url, state, created_at, opened_at, client in rows
     }
 
     return templates.TemplateResponse(
@@ -143,8 +145,8 @@ def create(
 
     db = get_db()
     db.execute(
-        "INSERT INTO links VALUES (?, ?, ?, ?, ?)",
-        (code, target_url, "NEW", created_at, client.strip())
+        "INSERT INTO links VALUES (?, ?, ?, ?, ?, ?)",
+        (code, target_url, "NEW", created_at, None, client.strip())
     )
     db.commit()
     db.close()
@@ -158,13 +160,13 @@ def create(
     return resp
 
 # =====================
-# STATUS
+# STATUS (для автообновления)
 # =====================
 @app.get("/status")
 def status():
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT code, state, created_at, client FROM links")
+    cur.execute("SELECT code, state, created_at, opened_at, client FROM links")
     rows = cur.fetchall()
     db.close()
 
@@ -172,9 +174,10 @@ def status():
         code: {
             "state": state,
             "created_at": created_at,
+            "opened_at": opened_at,
             "client": client
         }
-        for code, state, created_at, client in rows
+        for code, state, created_at, opened_at, client in rows
     })
 
 # =====================
@@ -206,7 +209,7 @@ def landing(request: Request, code: str):
     )
 
 # =====================
-# OPEN
+# OPEN (первое реальное открытие)
 # =====================
 @app.get("/open/{code}")
 def open_link(code: str):
@@ -222,9 +225,13 @@ def open_link(code: str):
     url, state = row
 
     if state == "NEW":
+        opened_at = datetime.now(
+            ZoneInfo("Europe/Moscow")
+        ).strftime("%d.%m.%Y %H:%M:%S")
+
         cur.execute(
-            "UPDATE links SET state='OPENED' WHERE code=?",
-            (code,)
+            "UPDATE links SET state='OPENED', opened_at=? WHERE code=?",
+            (opened_at, code)
         )
         db.commit()
         db.close()
@@ -265,5 +272,6 @@ def check_password(code: str = Form(...), password: str = Form(...)):
     db.commit()
     db.close()
     return RedirectResponse(row[0], status_code=302)
+
 
 
