@@ -17,7 +17,7 @@ templates = Jinja2Templates(directory="templates")
 # ---------- DATA ----------
 def load_data():
     if not DATA_FILE.exists():
-        return {"links": {}, "last_link": "", "sessions": {}}
+        return {"links": {}, "sessions": {}}
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -27,8 +27,7 @@ def save_data(data):
 
 # ---------- AUTH ----------
 def is_logged(request: Request, data):
-    sid = request.cookies.get("sid")
-    return sid in data["sessions"]
+    return request.cookies.get("sid") in data["sessions"]
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
@@ -37,7 +36,11 @@ def login_page(request: Request):
 @app.post("/login")
 def login(username: str = Form(...), password: str = Form(...)):
     if username != ADMIN_USER or password != ADMIN_PASS:
-        return HTMLResponse("Неверный логин или пароль", status_code=403)
+        return templates.TemplateResponse(
+            "login.html",
+            {"request": {}, "error": True},
+            status_code=403
+        )
 
     data = load_data()
     sid = secrets.token_urlsafe(16)
@@ -45,7 +48,7 @@ def login(username: str = Form(...), password: str = Form(...)):
     save_data(data)
 
     resp = RedirectResponse("/", status_code=302)
-    resp.set_cookie("sid", sid, httponly=True, secure=True, samesite="None")
+    resp.set_cookie("sid", sid, httponly=True, samesite="Lax")
     return resp
 
 # ---------- HOME ----------
@@ -55,11 +58,12 @@ def home(request: Request):
     if not is_logged(request, data):
         return RedirectResponse("/login", status_code=302)
 
+    last = request.cookies.get("last_link", "")
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
-            "link": data["last_link"],
+            "link": last,
             "links": data["links"]
         }
     )
@@ -76,12 +80,14 @@ def create(request: Request, target_url: str = Form(...)):
         "url": target_url,
         "state": "NEW"
     }
+    save_data(data)
 
     base = str(request.base_url).rstrip("/")
-    data["last_link"] = f"{base}/l/{code}"
+    link = f"{base}/l/{code}"
 
-    save_data(data)
-    return RedirectResponse("/", status_code=302)
+    resp = RedirectResponse("/", status_code=302)
+    resp.set_cookie("last_link", link, max_age=3600, samesite="Lax")
+    return resp
 
 # ---------- STATUS ----------
 @app.get("/status")
@@ -99,9 +105,15 @@ def landing(request: Request, code: str):
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if link["state"] == "OPENED":
-        return templates.TemplateResponse("password.html", {"request": request, "code": code})
+        return templates.TemplateResponse(
+            "password.html",
+            {"request": request, "code": code}
+        )
 
-    return templates.TemplateResponse("open.html", {"request": request, "code": code})
+    return templates.TemplateResponse(
+        "open.html",
+        {"request": request, "code": code}
+    )
 
 # ---------- AUTO OPEN ----------
 @app.get("/open/{code}")
@@ -138,6 +150,7 @@ def check_password(code: str = Form(...), password: str = Form(...)):
     link["state"] = "USED"
     save_data(data)
     return RedirectResponse(link["url"], status_code=302)
+
 
 
 
