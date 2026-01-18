@@ -10,11 +10,7 @@ body {
   background: #f4f6f8;
   margin: 0;
 }
-<style> /* Подсветка строки, если ссылка была открыта */
-.row-active {
-  background-color: #ecfdf5 !important;
-  border-left: 4px solid #22c55e !important;
-}
+
 .container {
   max-width: 720px;
   margin: 60px auto;
@@ -69,15 +65,17 @@ button {
 
 .history-item {
   display: flex;
+  align-items: flex-start;
   padding: 10px;
-  border-radius: 10px;
-  margin-bottom: 10px;
-  transition: background 0.3s ease;
+  border-radius: 8px;
+  margin-bottom: 8px;
 }
 
-.history-item.opened {
-  background: #ecfdf5;
-  border-left: 4px solid #22c55e;
+/* 🔥 АКТИВНАЯ СТРОКА (OPENED или USED) */
+.row-active {
+  background-color: #ecfdf5 !important;
+  border-left: 4px solid #22c55e !important;
+  padding-left: 10px;
 }
 
 .status-dot {
@@ -88,9 +86,9 @@ button {
   margin-top: 6px;
 }
 
-.status-new { background: #facc15; }
-.status-opened { background: #22c55e; }
-.status-used { background: #ef4444; }
+.status-new { background: #facc15; }    /* жёлтая */
+.status-opened { background: #22c55e; } /* зелёная */
+.status-used { background: #ef4444; }   /* красная */
 
 .history-time {
   font-size: 12px;
@@ -120,18 +118,31 @@ button {
 <div class="history">
 {% for code, item in links.items() %}
 <div class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}">
+
   <span class="status-dot
     {% if item.state == 'NEW' %}status-new
     {% elif item.state == 'OPENED' %}status-opened
-    {% else %}status-used{% endif %}">
+    {% elif item.state == 'USED' %}status-used
+    {% endif %}">
   </span>
+
   <div>
-    <div>{{ request.base_url }}l/{{ code }} {% if item.client %}— <b>{{ item.client }}</b>{% endif %}</div>
-    <div class="history-time">Создана: {{ item.created_at }}</div>
+    <div>
+      {{ request.base_url }}l/{{ code }}
+      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+    </div>
+
+    <div class="history-time">
+      Создана: {{ item.created_at }}
+    </div>
+
     {% if item.opened_at %}
-    <div class="history-time">Открыта: {{ item.opened_at }}</div>
+    <div class="history-time">
+      Открыта: {{ item.opened_at }}
+    </div>
     {% endif %}
   </div>
+
 </div>
 {% endfor %}
 </div>
@@ -144,40 +155,6 @@ function copyLink() {
   i.select();
   document.execCommand("copy");
 }
-
-async function refreshStatus() {
-  try {
-    const res = await fetch("/status");
-    if (!res.ok) return;
-
-    const data = await res.json();
-    const container = document.querySelector(".history");
-    if (!container) return;
-
-    const items = Array.from(container.children);
-
-    items.sort((a, b) => {
-      const aState = data[a.dataset.code]?.state;
-      const bState = data[b.dataset.code]?.state;
-
-      if (aState === "OPENED" && bState !== "OPENED") return -1;
-      if (aState !== "OPENED" && bState === "OPENED") return 1;
-      return 0;
-    });
-
-    items.forEach(el => container.appendChild(el));
-
-    items.forEach(el => {
-      const state = data[el.dataset.code]?.state;
-      if (state === "OPENED") {
-        el.classList.add("opened");
-      }
-    });
-
-  } catch (e) {}
-}
-
-setInterval(refreshStatus, 5000);
 </script>
 
 </body>
