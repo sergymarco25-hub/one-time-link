@@ -95,36 +95,43 @@ def home(request: Request):
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
-    db = get_db()
-    cur = db.cursor()
-    cur.execute("""
-        SELECT code, url, state, created_at, opened_at, client
-        FROM links
-        ORDER BY created_at DESC
-    """)
-    rows = cur.fetchall()
-    db.close()
+    from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
-    links = {
-        code: {
-            "url": url,
-            "state": state,
-            "created_at": created_at,
-            "opened_at": opened_at,
-            "client": client
-        }
-        for code, url, state, created_at, opened_at, client in rows
+now = datetime.now(ZoneInfo("Europe/Moscow"))
+
+links = {}
+
+for code, url, state, created_at, opened_at, client in rows:
+    opened_recent = False
+
+    if opened_at:
+        opened_time = datetime.strptime(
+            opened_at, "%d.%m.%Y %H:%M:%S"
+        ).replace(tzinfo=ZoneInfo("Europe/Moscow"))
+
+        if now - opened_time <= timedelta(hours=1):
+            opened_recent = True
+
+    links[code] = {
+        "url": url,
+        "state": state,
+        "created_at": created_at,
+        "opened_at": opened_at,
+        "client": client,
+        "opened_recent": opened_recent
     }
 
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "links": links,
-            "link": request.cookies.get("last_link", ""),
-            "target": request.cookies.get("last_target", "")
-        }
+# ⬆️ сортировка: активные (кто заходил) — наверх
+links = dict(
+    sorted(
+        links.items(),
+        key=lambda x: (
+            not x[1]["opened_recent"],
+            x[1]["created_at"]
+        )
     )
+)
 
 # =====================
 # CREATE LINK
