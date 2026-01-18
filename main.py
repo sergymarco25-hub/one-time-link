@@ -26,7 +26,7 @@ templates = Jinja2Templates(directory="templates")
 # =====================
 # ХРАНИЛИЩЕ
 # =====================
-links = {}   # code -> {url, state}
+links = {}
 stats = {"generated": 0}
 sessions = set()
 
@@ -35,7 +35,7 @@ last_target = ""
 
 
 # =====================
-# JSON ХРАНИЛИЩЕ
+# JSON ХРАНЕНИЕ
 # =====================
 def load_data():
     global links, stats
@@ -43,9 +43,9 @@ def load_data():
         return
     with open(DATA_FILE, "r", encoding="utf-8") as f:
         data = json.load(f)
-
     links.clear()
     links.update(data.get("links", {}))
+    stats.clear()
     stats.update(data.get("stats", {"generated": 0}))
 
 
@@ -112,7 +112,6 @@ def home(request: Request):
             "limit": GEN_LIMIT,
             "remaining": GEN_LIMIT - stats["generated"],
             "link": last_link,
-            "target_url": last_target,
             "links": links
         }
     )
@@ -123,7 +122,7 @@ def home(request: Request):
 # =====================
 @app.post("/create")
 def create(request: Request, target_url: str = Form(...)):
-    global last_link, last_target
+    global last_link
 
     if not is_logged_in(request):
         return RedirectResponse("/login", status_code=302)
@@ -133,23 +132,18 @@ def create(request: Request, target_url: str = Form(...)):
 
     code = secrets.token_urlsafe(3)
 
-    links[code] = {
-        "url": target_url,
-        "state": "NEW"
-    }
-
+    links[code] = {"url": target_url, "state": "NEW"}
     stats["generated"] += 1
     save_data()
 
     base = str(request.base_url).rstrip("/")
     last_link = f"{base}/l/{code}"
-    last_target = target_url
 
     return RedirectResponse("/", status_code=302)
 
 
 # =====================
-# LINK LANDING
+# LANDING
 # =====================
 @app.get("/l/{code}", response_class=HTMLResponse)
 def landing(request: Request, code: str):
@@ -182,7 +176,6 @@ def open_real(code: str = Form(...)):
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     link = links[code]
-
     if link["state"] == "NEW":
         link["state"] = "OPENED"
         save_data()
@@ -192,7 +185,7 @@ def open_real(code: str = Form(...)):
 
 
 # =====================
-# PASSWORD CHECK
+# PASSWORD
 # =====================
 @app.post("/check-password")
 def check_password(
@@ -213,12 +206,11 @@ def check_password(
     url = links[code]["url"]
     links[code]["state"] = "USED"
     save_data()
-
     return RedirectResponse(url, status_code=302)
 
 
 # =====================
-# STATUS API (для автообновления)
+# STATUS API
 # =====================
 @app.get("/status")
 def status_api():
