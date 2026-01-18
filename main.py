@@ -11,8 +11,8 @@ from fastapi.templating import Jinja2Templates
 # НАСТРОЙКИ
 # =====================
 ADMIN_USER = "admin"
-ADMIN_PASS = "12345"
-REOPEN_PASSWORD = "1111"
+ADMIN_PASS = "2345"
+REOPEN_PASSWORD = "7878"
 
 DB_PATH = "data.db"
 
