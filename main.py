@@ -1,42 +1,73 @@
-import json
 import secrets
-from pathlib import Path
+import sqlite3
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
+# =====================
+# НАСТРОЙКИ
+# =====================
 ADMIN_USER = "admin"
 ADMIN_PASS = "12345"
 REOPEN_PASSWORD = "1111"
 
-DATA_FILE = Path("data.json")
+DB_PATH = "data.db"
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# ---------- DATA ----------
-def load_data():
-    if not DATA_FILE.exists():
-        return {"links": {}, "sessions": {}}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+# =====================
+# DATABASE
+# =====================
+def get_db():
+    return sqlite3.connect(DB_PATH, check_same_thread=False)
 
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+def init_db():
+    db = get_db()
+    cur = db.cursor()
 
-# ---------- AUTH ----------
-def is_logged(request: Request, data):
-    return request.cookies.get("sid") in data["sessions"]
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS links (
+        code TEXT PRIMARY KEY,
+        url TEXT,
+        state TEXT,
+        created_at TEXT
+    )
+    """)
+
+    cur.execute("""
+    CREATE TABLE IF NOT EXISTS sessions (
+        sid TEXT PRIMARY KEY
+    )
+    """)
+
+    db.commit()
+    db.close()
+
+init_db()
+
+# =====================
+# AUTH
+# =====================
+def is_logged(request: Request):
+    sid = request.cookies.get("sid")
+    if not sid:
+        return False
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT 1 FROM sessions WHERE sid=?", (sid,))
+    ok = cur.fetchone() is not None
+    db.close()
+    return ok
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
     return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
+def login(request: Request, username: str = Form(...), password: str = Form(...)):
     if username != ADMIN_USER or password != ADMIN_PASS:
         return templates.TemplateResponse(
             "login.html",
@@ -44,126 +75,159 @@ def login(username: str = Form(...), password: str = Form(...)):
             status_code=403
         )
 
-    data = load_data()
     sid = secrets.token_urlsafe(16)
-    data["sessions"][sid] = True
-    save_data(data)
+    db = get_db()
+    db.execute("INSERT OR IGNORE INTO sessions VALUES (?)", (sid,))
+    db.commit()
+    db.close()
 
     resp = RedirectResponse("/", status_code=302)
     resp.set_cookie("sid", sid, httponly=True, samesite="Lax")
     return resp
 
-# ---------- HOME ----------
+# =====================
+# HOME
+# =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
-    data = load_data()
-    if not is_logged(request, data):
+    if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
-    links_sorted = dict(
-        sorted(
-            data["links"].items(),
-            key=lambda x: x[1]["created_at"],
-            reverse=True
-        )
-    )
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT code, url, state, created_at FROM links ORDER BY created_at DESC")
+    rows = cur.fetchall()
+    db.close()
 
-    last_link = request.cookies.get("last_link", "")
-    last_target = request.cookies.get("last_target", "")
+    links = {
+        code: {"url": url, "state": state, "created_at": created_at}
+        for code, url, state, created_at in rows
+    }
 
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
-            "link": last_link,
-            "target": last_target,
-            "links": links_sorted
+            "links": links,
+            "link": request.cookies.get("last_link", ""),
+            "target": request.cookies.get("last_target", "")
         }
     )
 
-# ---------- CREATE ----------
+# =====================
+# CREATE LINK
+# =====================
 @app.post("/create")
 def create(request: Request, target_url: str = Form(...)):
-    data = load_data()
-    if not is_logged(request, data):
+    if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
     code = secrets.token_urlsafe(3)
-    moscow_time = datetime.now(ZoneInfo("Europe/Moscow"))
+    created_at = datetime.now(ZoneInfo("Europe/Moscow")).strftime("%d.%m.%Y %H:%M:%S")
 
-    data["links"][code] = {
-        "url": target_url,
-        "state": "NEW",
-        "created_at": moscow_time.strftime("%d.%m.%Y %H:%M:%S")
-    }
-    save_data(data)
+    db = get_db()
+    db.execute(
+        "INSERT INTO links VALUES (?, ?, ?, ?)",
+        (code, target_url, "NEW", created_at)
+    )
+    db.commit()
+    db.close()
 
     base = str(request.base_url).rstrip("/")
     one_time_link = f"{base}/l/{code}"
 
     resp = RedirectResponse("/", status_code=302)
-    resp.set_cookie("last_link", one_time_link, max_age=3600, samesite="Lax")
-    resp.set_cookie("last_target", target_url, max_age=3600, samesite="Lax")
+    resp.set_cookie("last_link", one_time_link, max_age=3600)
+    resp.set_cookie("last_target", target_url, max_age=3600)
     return resp
 
-# ---------- STATUS ----------
+# =====================
+# STATUS
+# =====================
 @app.get("/status")
 def status():
-    data = load_data()
-    return JSONResponse(data["links"])
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT code, state, created_at FROM links")
+    rows = cur.fetchall()
+    db.close()
 
-# ---------- LANDING ----------
+    return JSONResponse({
+        code: {"state": state, "created_at": created_at}
+        for code, state, created_at in rows
+    })
+
+# =====================
+# LANDING
+# =====================
 @app.get("/l/{code}", response_class=HTMLResponse)
 def landing(request: Request, code: str):
-    data = load_data()
-    link = data["links"].get(code)
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT state FROM links WHERE code=?", (code,))
+    row = cur.fetchone()
+    db.close()
 
-    if not link or link["state"] == "USED":
+    if not row:
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    if link["state"] == "OPENED":
-        return templates.TemplateResponse(
-            "password.html",
-            {"request": request, "code": code}
-        )
+    if row[0] == "OPENED":
+        return templates.TemplateResponse("password.html", {"request": request, "code": code})
 
-    return templates.TemplateResponse(
-        "open.html",
-        {"request": request, "code": code}
-    )
+    if row[0] == "USED":
+        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-# ---------- AUTO OPEN ----------
+    return templates.TemplateResponse("open.html", {"request": request, "code": code})
+
+# =====================
+# OPEN
+# =====================
 @app.get("/open/{code}")
 def open_link(code: str):
-    data = load_data()
-    link = data["links"].get(code)
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT url, state FROM links WHERE code=?", (code,))
+    row = cur.fetchone()
 
-    if not link:
+    if not row:
+        db.close()
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    if link["state"] == "NEW":
-        link["state"] = "OPENED"
-        save_data(data)
-        return RedirectResponse(link["url"], status_code=302)
+    url, state = row
 
+    if state == "NEW":
+        cur.execute("UPDATE links SET state='OPENED' WHERE code=?", (code,))
+        db.commit()
+        db.close()
+        return RedirectResponse(url, status_code=302)
+
+    db.close()
     return RedirectResponse(f"/l/{code}", status_code=302)
 
-# ---------- PASSWORD ----------
+# =====================
+# PASSWORD
+# =====================
 @app.post("/check-password")
 def check_password(code: str = Form(...), password: str = Form(...)):
-    data = load_data()
-    link = data["links"].get(code)
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("SELECT url FROM links WHERE code=? AND state='OPENED'", (code,))
+    row = cur.fetchone()
 
-    if not link or link["state"] != "OPENED":
+    if not row:
+        db.close()
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if password != REOPEN_PASSWORD:
+        db.close()
         return templates.TemplateResponse(
             "password.html",
             {"request": {}, "code": code, "error": True},
             status_code=403
         )
 
-    link["state"] = "USED"
-    save_data(data)
-    return RedirectResponse(link["url"], status_code=302)
+    cur.execute("UPDATE links SET state='USED' WHERE code=?", (code,))
+    db.commit()
+    db.close()
+    return RedirectResponse(row[0], status_code=302)
+
