@@ -1,18 +1,55 @@
 <!DOCTYPE html>
-<html>
+<html lang="ru">
 <head>
-<meta charset="utf-8">
+<meta charset="UTF-8">
 <title>Переход</title>
+
 <meta http-equiv="refresh" content="2;url=/open/{{ code }}">
+
+<style>
+body {
+    font-family: -apple-system, BlinkMacSystemFont, Arial;
+    background: #f4f6f8;
+}
+
+.box {
+    width: 420px;
+    margin: 120px auto;
+    background: white;
+    padding: 40px;
+    text-align: center;
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+}
+
+button {
+    margin-top: 25px;
+    padding: 16px 36px;
+    font-size: 18px;
+    border-radius: 12px;
+    border: none;
+    background: #4f46e5;
+    color: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #4338ca;
+}
+</style>
 </head>
 
-<body style="text-align:center; padding-top:80px; font-family:Arial;">
-<h2>Переход на сайт</h2>
-<p>Вы будете перенаправлены автоматически</p>
+<body>
 
-<a href="/open/{{ code }}">
-  <button style="padding:16px 36px; font-size:18px;">Продолжить</button>
-</a>
+<div class="box">
+    <h2>Перейти на сайт</h2>
+    <p>Вы будете автоматически перенаправлены</p>
+
+    <a href="/open/{{ code }}">
+        <button>Продолжить</button>
+    </a>
+</div>
+
 </body>
 </html>
 
