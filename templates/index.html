@@ -37,6 +37,7 @@ input[type="text"] {
   font-size: 15px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
+  box-sizing: border-box;
 }
 
 input.main {
@@ -45,6 +46,13 @@ input.main {
 
 input.client {
   max-width: 160px;
+}
+
+/* поле СКОПИРОВАТЬ — длинное */
+#generatedLink {
+  width: 100%;
+  font-size: 14px;
+  background: #f9fafb;
 }
 
 button {
@@ -61,6 +69,7 @@ button:hover {
   background: #4338ca;
 }
 
+/* зелёная кнопка */
 .copy-btn {
   width: 100%;
   margin-top: 10px;
@@ -72,6 +81,14 @@ button:hover {
   cursor: pointer;
   color: #fff;
   background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+
+.copy-btn:hover {
+  box-shadow: 0 6px 18px rgba(34,197,94,.35);
+}
+
+.copy-btn:active {
+  transform: scale(0.97);
 }
 
 .result {
@@ -101,6 +118,7 @@ button:hover {
 
 .history-url {
   font-size: 14px;
+  word-break: break-all;
 }
 
 .history-time {
@@ -115,24 +133,41 @@ button:hover {
 <div class="container">
   <h1>Генерация одноразовой ссылки</h1>
 
+  <!-- ФОРМА -->
   <form method="post" action="/create">
     <div class="form-row">
-      <input class="main" type="text" name="target_url"
-             placeholder="Вставьте ссылку"
-             value="{{ target }}" required>
-      <input class="client" type="text" name="client"
-             placeholder="Поле">
+      <input
+        class="main"
+        type="text"
+        name="target_url"
+        placeholder="Вставьте ссылку"
+        value="{{ target }}"
+        required
+      >
+      <input
+        class="client"
+        type="text"
+        name="client"
+        placeholder="Поле"
+      >
     </div>
     <button type="submit">Сгенерировать</button>
   </form>
 
+  <!-- СГЕНЕРИРОВАННАЯ ССЫЛКА -->
   {% if link %}
   <div class="result">
-    <input id="generatedLink" type="text" value="{{ link }}" readonly>
+    <input
+      id="generatedLink"
+      type="text"
+      value="{{ link }}"
+      readonly
+    >
     <button class="copy-btn" onclick="copyLink()">Скопировать</button>
   </div>
   {% endif %}
 
+  <!-- ИСТОРИЯ -->
   <div class="history">
     {% for code, item in links.items() %}
       <div class="history-item">
@@ -165,6 +200,7 @@ function copyLink() {
 
 </body>
 </html>
+
 
 
 
