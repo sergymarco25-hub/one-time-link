@@ -70,6 +70,12 @@ button {
 .history-item {
   display: flex;
   margin-bottom: 12px;
+  padding: 6px;
+  border-radius: 10px;
+}
+
+.highlight {
+  background: #ecfdf5;
 }
 
 .status-dot {
@@ -80,10 +86,9 @@ button {
   margin-top: 6px;
 }
 
-/* СТАТУСЫ */
+/* КРУЖКИ */
 .status-new { background: #facc15; }     /* жёлтый */
-.status-opened { background: #22c55e; }  /* зелёный (активно) */
-.status-old { background: #9ca3af; }     /* серый (было) */
+.status-opened { background: #22c55e; }  /* зелёный */
 .status-used { background: #ef4444; }    /* красный */
 
 .history-time {
@@ -123,17 +128,15 @@ button {
 
 <div class="history">
 {% for code, item in links.items() %}
-<div class="history-item">
+<div class="history-item {% if item.opened_recent %}highlight{% endif %}">
 
-  <!-- ЛОГИКА ИНДИКАТОРА -->
+  <!-- КРУЖОК = ТОЛЬКО СОСТОЯНИЕ -->
   <span class="status-dot
-    {% if item.opened_recent %}
-      status-opened
-    {% elif item.opened_at %}
-      status-old
-    {% elif item.state == 'NEW' %}
+    {% if item.state == 'NEW' %}
       status-new
-    {% else %}
+    {% elif item.state == 'OPENED' %}
+      status-opened
+    {% elif item.state == 'USED' %}
       status-used
     {% endif %}
   "></span>
