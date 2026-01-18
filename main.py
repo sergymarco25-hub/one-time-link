@@ -1,6 +1,7 @@
 import json
 import secrets
 from pathlib import Path
+from datetime import datetime
 from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -58,13 +59,22 @@ def home(request: Request):
     if not is_logged(request, data):
         return RedirectResponse("/login", status_code=302)
 
+    # сортировка: новые сверху
+    links_sorted = dict(
+        sorted(
+            data["links"].items(),
+            key=lambda x: x[1]["created_at"],
+            reverse=True
+        )
+    )
+
     last = request.cookies.get("last_link", "")
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
             "link": last,
-            "links": data["links"]
+            "links": links_sorted
         }
     )
 
@@ -78,7 +88,8 @@ def create(request: Request, target_url: str = Form(...)):
     code = secrets.token_urlsafe(3)
     data["links"][code] = {
         "url": target_url,
-        "state": "NEW"
+        "state": "NEW",
+        "created_at": datetime.now().strftime("%d.%m.%Y %H:%M:%S")
     }
     save_data(data)
 
@@ -150,6 +161,7 @@ def check_password(code: str = Form(...), password: str = Form(...)):
     link["state"] = "USED"
     save_data(data)
     return RedirectResponse(link["url"], status_code=302)
+
 
 
 
