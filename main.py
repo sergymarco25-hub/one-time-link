@@ -22,7 +22,7 @@ templates = Jinja2Templates(directory="templates")
 # =====================
 links = {}                 # code -> {url, state}
 sessions = set()
-last_generated_link = ""   # сохраняем последнюю ссылку на сервере
+last_generated_link = ""   # ПОСЛЕДНЯЯ ССЫЛКА (СЕРВЕРНО)
 
 # =====================
 # DATA
@@ -82,7 +82,7 @@ def home(request: Request):
         {
             "request": request,
             "link": last_generated_link,
-            "links": links
+            "links": links   # <<< ВОЗВРАЩАЕМ ИСТОРИЮ
         }
     )
 
@@ -107,25 +107,13 @@ def create(request: Request, target_url: str = Form(...)):
 
     save_data()
 
-    resp = RedirectResponse("/", status_code=302)
-    resp.set_cookie(
-        "last_link",
-        last_generated_link,
-        max_age=600,
-        secure=True,
-        samesite="None"
-    )
-    return resp
+    return RedirectResponse("/", status_code=302)
 
 # =====================
 # STATUS API (ДЛЯ АВТООБНОВЛЕНИЯ)
 # =====================
 @app.get("/status")
 def status():
-    """
-    Возвращает статусы всех ссылок:
-    NEW / OPENED / USED
-    """
     return JSONResponse(links)
 
 # =====================
@@ -195,6 +183,7 @@ def check_password(
     links[code]["state"] = "USED"
     save_data()
     return RedirectResponse(url, status_code=302)
+
 
 
 
