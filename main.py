@@ -33,7 +33,8 @@ def init_db():
         code TEXT PRIMARY KEY,
         url TEXT,
         state TEXT,
-        created_at TEXT
+        created_at TEXT,
+        client TEXT
     )
     """)
 
@@ -95,13 +96,22 @@ def home(request: Request):
 
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT code, url, state, created_at FROM links ORDER BY created_at DESC")
+    cur.execute("""
+        SELECT code, url, state, created_at, client
+        FROM links
+        ORDER BY created_at DESC
+    """)
     rows = cur.fetchall()
     db.close()
 
     links = {
-        code: {"url": url, "state": state, "created_at": created_at}
-        for code, url, state, created_at in rows
+        code: {
+            "url": url,
+            "state": state,
+            "created_at": created_at,
+            "client": client
+        }
+        for code, url, state, created_at, client in rows
     }
 
     return templates.TemplateResponse(
@@ -118,17 +128,23 @@ def home(request: Request):
 # CREATE LINK
 # =====================
 @app.post("/create")
-def create(request: Request, target_url: str = Form(...)):
+def create(
+    request: Request,
+    target_url: str = Form(...),
+    client: str = Form("")
+):
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
     code = secrets.token_urlsafe(3)
-    created_at = datetime.now(ZoneInfo("Europe/Moscow")).strftime("%d.%m.%Y %H:%M:%S")
+    created_at = datetime.now(
+        ZoneInfo("Europe/Moscow")
+    ).strftime("%d.%m.%Y %H:%M:%S")
 
     db = get_db()
     db.execute(
-        "INSERT INTO links VALUES (?, ?, ?, ?)",
-        (code, target_url, "NEW", created_at)
+        "INSERT INTO links VALUES (?, ?, ?, ?, ?)",
+        (code, target_url, "NEW", created_at, client.strip())
     )
     db.commit()
     db.close()
@@ -148,13 +164,17 @@ def create(request: Request, target_url: str = Form(...)):
 def status():
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT code, state, created_at FROM links")
+    cur.execute("SELECT code, state, created_at, client FROM links")
     rows = cur.fetchall()
     db.close()
 
     return JSONResponse({
-        code: {"state": state, "created_at": created_at}
-        for code, state, created_at in rows
+        code: {
+            "state": state,
+            "created_at": created_at,
+            "client": client
+        }
+        for code, state, created_at, client in rows
     })
 
 # =====================
@@ -172,12 +192,18 @@ def landing(request: Request, code: str):
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
     if row[0] == "OPENED":
-        return templates.TemplateResponse("password.html", {"request": request, "code": code})
+        return templates.TemplateResponse(
+            "password.html",
+            {"request": request, "code": code}
+        )
 
     if row[0] == "USED":
         return HTMLResponse("❌ Ссылка недействительна", status_code=410)
 
-    return templates.TemplateResponse("open.html", {"request": request, "code": code})
+    return templates.TemplateResponse(
+        "open.html",
+        {"request": request, "code": code}
+    )
 
 # =====================
 # OPEN
@@ -196,7 +222,10 @@ def open_link(code: str):
     url, state = row
 
     if state == "NEW":
-        cur.execute("UPDATE links SET state='OPENED' WHERE code=?", (code,))
+        cur.execute(
+            "UPDATE links SET state='OPENED' WHERE code=?",
+            (code,)
+        )
         db.commit()
         db.close()
         return RedirectResponse(url, status_code=302)
@@ -211,7 +240,10 @@ def open_link(code: str):
 def check_password(code: str = Form(...), password: str = Form(...)):
     db = get_db()
     cur = db.cursor()
-    cur.execute("SELECT url FROM links WHERE code=? AND state='OPENED'", (code,))
+    cur.execute(
+        "SELECT url FROM links WHERE code=? AND state='OPENED'",
+        (code,)
+    )
     row = cur.fetchone()
 
     if not row:
@@ -226,8 +258,12 @@ def check_password(code: str = Form(...), password: str = Form(...)):
             status_code=403
         )
 
-    cur.execute("UPDATE links SET state='USED' WHERE code=?", (code,))
+    cur.execute(
+        "UPDATE links SET state='USED' WHERE code=?",
+        (code,)
+    )
     db.commit()
     db.close()
     return RedirectResponse(row[0], status_code=302)
+
 
