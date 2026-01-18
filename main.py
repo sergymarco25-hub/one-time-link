@@ -173,6 +173,25 @@ def create(
         return RedirectResponse("/login", status_code=302)
 
     code = secrets.token_urlsafe(3)
+    created_at = datetime.now(
+        ZoneInfo("Europe/Moscow")
+    ).strftime("%d.%m.%Y %H:%M:%S")
+
+    db = get_db()
+    db.execute(
+        "INSERT INTO links VALUES (?, ?, ?, ?, ?, ?)",
+        (code, target_url, "NEW", created_at, None, client.strip())
+    )
+    db.commit()
+    db.close()
+
+    base = str(request.base_url).rstrip("/")
+    one_time_link = f"{base}/l/{code}"
+
+    resp = RedirectResponse("/", status_code=302)
+    resp.set_cookie("last_link", one_time_link, max_age=3600)
+    resp.set_cookie("last_target", target_url, max_age=3600)
+    return resp   # ← ВОТ ЭТА СТРОКА КРИТИЧНА
 
 
 
