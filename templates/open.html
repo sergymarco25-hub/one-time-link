@@ -3,25 +3,22 @@
 <head>
 <meta charset="utf-8">
 <title>Переход</title>
+
+<meta http-equiv="refresh" content="2;url=/open/{{ code }}">
+
 </head>
-<body style="font-family:Arial; text-align:center; padding-top:80px;">
+<body style="text-align:center; padding-top:80px; font-family:Arial;">
 
 <h2>Перейти на сайт</h2>
 <p>Вы будете перенаправлены автоматически</p>
 
-<form id="openForm" method="post" action="/open">
-  <input type="hidden" name="code" value="{{ code }}">
-  <button type="submit" style="padding:15px 30px; font-size:18px;">
+<a href="/open/{{ code }}">
+  <button style="padding:16px 36px; font-size:18px;">
     Продолжить
   </button>
-</form>
-
-<script>
-setTimeout(() => {
-  document.getElementById("openForm").submit();
-}, 2000);
-</script>
+</a>
 
 </body>
 </html>
+
 
