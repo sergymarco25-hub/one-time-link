@@ -29,34 +29,38 @@ h1 {
 .form-row {
   display: flex;
   gap: 10px;
+  margin-bottom: 10px;
 }
 
 input[type="text"] {
-  flex: 1;
   padding: 12px 14px;
   font-size: 15px;
   border-radius: 10px;
   border: 1px solid #d1d5db;
 }
 
+input.main {
+  flex: 1;
+}
+
+input.client {
+  max-width: 160px;
+}
+
 button {
   padding: 12px 18px;
   border-radius: 10px;
   border: none;
+  background: #4f46e5;
+  color: #fff;
   font-size: 15px;
   cursor: pointer;
 }
 
-/* кнопка СГЕНЕРИРОВАТЬ */
-.gen-btn {
-  background: #4f46e5;
-  color: #fff;
-}
-.gen-btn:hover {
+button:hover {
   background: #4338ca;
 }
 
-/* зелёная кнопка СКОПИРОВАТЬ */
 .copy-btn {
   width: 100%;
   margin-top: 10px;
@@ -68,35 +72,14 @@ button {
   cursor: pointer;
   color: #fff;
   background: linear-gradient(135deg, #16a34a, #22c55e);
-  transition: transform .1s ease, box-shadow .1s ease;
-}
-
-.copy-btn:hover {
-  box-shadow: 0 6px 18px rgba(34,197,94,.35);
-}
-
-.copy-btn:active {
-  transform: scale(0.97);
 }
 
 .result {
   margin-top: 16px;
 }
 
-.result input {
-  background: #f9fafb;
-  width: 100%;
-  margin-bottom: 8px;
-}
-
 .history {
   margin-top: 28px;
-}
-
-.history h2 {
-  font-size: 16px;
-  margin-bottom: 12px;
-  color: #374151;
 }
 
 .history-item {
@@ -118,8 +101,6 @@ button {
 
 .history-url {
   font-size: 14px;
-  color: #374151;
-  word-break: break-all;
 }
 
 .history-time {
@@ -134,56 +115,43 @@ button {
 <div class="container">
   <h1>Генерация одноразовой ссылки</h1>
 
-  <!-- ИСХОДНАЯ ССЫЛКА -->
   <form method="post" action="/create">
     <div class="form-row">
-      <input
-        type="text"
-        name="target_url"
-        placeholder="Вставьте ссылку"
-        value="{{ target }}"
-        required
-      >
-      <button type="submit" class="gen-btn">Сгенерировать</button>
+      <input class="main" type="text" name="target_url"
+             placeholder="Вставьте ссылку"
+             value="{{ target }}" required>
+      <input class="client" type="text" name="client"
+             placeholder="Поле">
     </div>
+    <button type="submit">Сгенерировать</button>
   </form>
 
-  <!-- ОДНОРАЗОВАЯ ССЫЛКА -->
   {% if link %}
   <div class="result">
-    <input
-      id="generatedLink"
-      type="text"
-      value="{{ link }}"
-      readonly
-    >
+    <input id="generatedLink" type="text" value="{{ link }}" readonly>
     <button class="copy-btn" onclick="copyLink()">Скопировать</button>
   </div>
   {% endif %}
 
-  <!-- ИСТОРИЯ -->
   <div class="history">
-    <h2>История ссылок</h2>
-
-    <div id="history">
-      {% for code, item in links.items() %}
-        <div class="history-item">
-          <span class="status-dot
-            {% if item.state == 'NEW' %}status-new
-            {% elif item.state == 'OPENED' %}status-opened
-            {% else %}status-used{% endif %}">
-          </span>
-          <div>
-            <div class="history-url">
-              {{ request.base_url }}l/{{ code }}
-            </div>
-            <div class="history-time">
-              {{ item.created_at }}
-            </div>
+    {% for code, item in links.items() %}
+      <div class="history-item">
+        <span class="status-dot
+          {% if item.state == 'NEW' %}status-new
+          {% elif item.state == 'OPENED' %}status-opened
+          {% else %}status-used{% endif %}">
+        </span>
+        <div>
+          <div class="history-url">
+            {{ request.base_url }}l/{{ code }}
+            {% if item.client %} — <strong>{{ item.client }}</strong>{% endif %}
+          </div>
+          <div class="history-time">
+            {{ item.created_at }}
           </div>
         </div>
-      {% endfor %}
-    </div>
+      </div>
+    {% endfor %}
   </div>
 </div>
 
@@ -191,47 +159,8 @@ button {
 function copyLink() {
   const input = document.getElementById("generatedLink");
   input.select();
-  input.setSelectionRange(0, 99999);
-  navigator.clipboard.writeText(input.value);
-
-  const btn = document.querySelector(".copy-btn");
-  btn.innerText = "Скопировано ✓";
-  setTimeout(() => {
-    btn.innerText = "Скопировать";
-  }, 2000);
+  document.execCommand("copy");
 }
-
-/* автообновление истории */
-setInterval(() => {
-  fetch('/status')
-    .then(r => r.json())
-    .then(data => {
-      const history = document.getElementById('history');
-      if (!history) return;
-
-      history.innerHTML = '';
-
-      Object.keys(data).reverse().forEach(code => {
-        const item = data[code];
-        let cls = 'status-new';
-        if (item.state === 'OPENED') cls = 'status-opened';
-        if (item.state === 'USED') cls = 'status-used';
-
-        history.innerHTML += `
-          <div class="history-item">
-            <span class="status-dot ${cls}"></span>
-            <div>
-              <div class="history-url">
-                ${location.origin}/l/${code}
-              </div>
-              <div class="history-time">
-                ${item.created_at || ''}
-              </div>
-            </div>
-          </div>`;
-      });
-    });
-}, 4000);
 </script>
 
 </body>
