@@ -2,56 +2,93 @@
 <html lang="ru">
 <head>
 <meta charset="UTF-8">
-<title>Переход</title>
-
-<meta http-equiv="refresh" content="2;url=/open/{{ code }}">
+<title>Переход на сайт</title>
 
 <style>
 body {
-    font-family: -apple-system, BlinkMacSystemFont, Arial;
-    background: #f4f6f8;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
+  background: #f4f6f8;
+  margin: 0;
 }
 
-.box {
-    width: 420px;
-    margin: 120px auto;
-    background: white;
-    padding: 40px;
-    text-align: center;
-    border-radius: 14px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+.container {
+  max-width: 420px;
+  margin: 120px auto;
+  background: #fff;
+  padding: 32px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+  text-align: center;
+}
+
+h1 {
+  font-size: 22px;
+  margin-bottom: 12px;
+  color: #111827;
+}
+
+p {
+  color: #374151;
+  font-size: 15px;
+}
+
+.counter {
+  margin: 20px 0;
+  font-size: 28px;
+  font-weight: 600;
+  color: #111827;
 }
 
 button {
-    margin-top: 25px;
-    padding: 16px 36px;
-    font-size: 18px;
-    border-radius: 12px;
-    border: none;
-    background: #4f46e5;
-    color: white;
-    cursor: pointer;
+  width: 100%;
+  margin-top: 16px;
+  padding: 14px;
+  border-radius: 12px;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
 }
 
 button:hover {
-    background: #4338ca;
+  background: #4338ca;
 }
 </style>
 </head>
 
 <body>
 
-<div class="box">
-    <h2>Перейти на сайт</h2>
-    <p>Вы будете автоматически перенаправлены</p>
+<div class="container">
+  <h1>Переход на сайт</h1>
+  <p>Вы будете автоматически перенаправлены</p>
 
-    <a href="/open/{{ code }}">
-        <button>Продолжить</button>
-    </a>
+  <div class="counter">
+    <span id="sec">3</span> сек
+  </div>
+
+  <form method="get" action="/open/{{ code }}">
+    <button type="submit">Перейти сейчас</button>
+  </form>
 </div>
+
+<script>
+let s = 3;
+const el = document.getElementById('sec');
+
+const timer = setInterval(() => {
+  s--;
+  el.textContent = s;
+  if (s <= 0) {
+    clearInterval(timer);
+    window.location.href = "/open/{{ code }}";
+  }
+}, 1000);
+</script>
 
 </body>
 </html>
+
 
 
 
