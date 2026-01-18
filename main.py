@@ -174,7 +174,7 @@ def create(
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
-    code = secrets.
+    code = secrets.token_urlsafe(3)
 
 
 
