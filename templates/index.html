@@ -2,102 +2,36 @@
 <html>
 <head>
 <meta charset="utf-8">
-<title>One-Time Links</title>
-
-<style>
-body { font-family: Arial; background:#f4f4f4; padding:40px; }
-.box { background:#fff; padding:25px; border-radius:12px; max-width:700px; margin:auto; }
-
-input, button {
-  padding:10px;
-  width:100%;
-  margin-top:10px;
-  border-radius:6px;
-  border:1px solid #ccc;
-}
-
-button {
-  background:#3498db;
-  color:#fff;
-  border:none;
-  cursor:pointer;
-}
-
-.copy-row {
-  display:flex;
-  gap:10px;
-}
-
-.history { margin-top:30px; }
-.history-item { display:flex; align-items:center; margin-bottom:8px; font-size:14px; }
-
-.dot { width:10px; height:10px; border-radius:50%; margin-right:8px; }
-.red { background:#e74c3c; }
-.yellow { background:#f1c40f; }
-.green { background:#2ecc71; }
-</style>
+<title>One-Time Link</title>
 </head>
 
-<body>
-<div class="box">
-  <h2>Создать одноразовую ссылку</h2>
+<body style="font-family:Arial; padding:40px;">
 
-  <form method="post" action="/create">
-    <input name="target_url" placeholder="https://example.com" required>
-    <button type="submit">Сгенерировать</button>
-  </form>
+<h2>Создать ссылку</h2>
 
-  {% if link %}
-    <p><b>Последняя ссылка:</b></p>
-    <div class="copy-row">
-      <input id="generatedLink" value="{{ link }}" readonly>
-      <button type="button" onclick="copyLink()">Скопировать</button>
-    </div>
-    <p id="copyStatus" style="color:green; display:none;">✔ Скопировано</p>
-  {% endif %}
+<form method="post" action="/create">
+  <input name="target_url" placeholder="https://example.com" required style="width:320px;">
+  <button type="submit">Сгенерировать</button>
+</form>
 
-  <div class="history">
-    <h3>История ссылок</h3>
-    <div id="history"></div>
-  </div>
-</div>
+{% if link %}
+  <p>Ваша ссылка:</p>
+  <input id="link" value="{{ link }}" readonly style="width:320px;">
+  <button type="button" onclick="copy()">Скопировать</button>
+  <p id="ok" style="display:none;color:green;">✔ Скопировано</p>
+{% endif %}
 
 <script>
-function copyLink() {
-  const input = document.getElementById("generatedLink");
-  input.select();
-  navigator.clipboard.writeText(input.value).then(() => {
-    const s = document.getElementById("copyStatus");
-    s.style.display = "block";
-    setTimeout(() => s.style.display = "none", 2000);
-  });
+function copy() {
+  const i = document.getElementById("link");
+  i.select();
+  navigator.clipboard.writeText(i.value);
+  document.getElementById("ok").style.display = "block";
 }
-
-async function refreshHistory() {
-  const res = await fetch("/status");
-  const data = await res.json();
-  const box = document.getElementById("history");
-  box.innerHTML = "";
-
-  for (const code in data) {
-    let state = data[code].state;
-    let color = "red", text = "Не открыта";
-    if (state === "OPENED") { color="yellow"; text="Открыта"; }
-    if (state === "USED") { color="green"; text="Использована"; }
-
-    box.innerHTML += `
-      <div class="history-item">
-        <div class="dot ${color}"></div>
-        ${text} — /l/${code}
-      </div>
-    `;
-  }
-}
-
-refreshHistory();
-setInterval(refreshHistory, 5000);
 </script>
+
 </body>
 </html>
+
 
 
