@@ -1,3 +1,5 @@
+from datetime import datetime
+from zoneinfo import ZoneInfo
 import json
 import secrets
 from pathlib import Path
@@ -89,8 +91,13 @@ def create(request: Request, target_url: str = Form(...)):
     data["links"][code] = {
         "url": target_url,
         "state": "NEW",
-        "created_at": datetime.now().strftime("%d.%m.%Y %H:%M:%S")
-    }
+        moscow_time = datetime.now(ZoneInfo("Europe/Moscow"))
+
+data["links"][code] = {
+    "url": target_url,
+    "state": "NEW",
+    "created_at": moscow_time.strftime("%d.%m.%Y %H:%M:%S")
+}
     save_data(data)
 
     base = str(request.base_url).rstrip("/")
