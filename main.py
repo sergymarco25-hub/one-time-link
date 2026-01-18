@@ -1,173 +1,209 @@
-from datetime import datetime
-from zoneinfo import ZoneInfo
-import json
-import secrets
-from pathlib import Path
-from datetime import datetime
-from fastapi import FastAPI, Request, Form
-from fastapi.responses import HTMLResponse, RedirectResponse, JSONResponse
-from fastapi.templating import Jinja2Templates
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>One-time link</title>
 
-ADMIN_USER = "admin"
-ADMIN_PASS = "12345"
-REOPEN_PASSWORD = "1111"
-
-DATA_FILE = Path("data.json")
-
-app = FastAPI()
-templates = Jinja2Templates(directory="templates")
-
-# ---------- DATA ----------
-def load_data():
-    if not DATA_FILE.exists():
-        return {"links": {}, "sessions": {}}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
-
-def save_data(data):
-    with open(DATA_FILE, "w", encoding="utf-8") as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
-
-# ---------- AUTH ----------
-def is_logged(request: Request, data):
-    return request.cookies.get("sid") in data["sessions"]
-
-@app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
-
-@app.post("/login")
-def login(username: str = Form(...), password: str = Form(...)):
-    if username != ADMIN_USER or password != ADMIN_PASS:
-        return templates.TemplateResponse(
-            "login.html",
-            {"request": {}, "error": True},
-            status_code=403
-        )
-
-    data = load_data()
-    sid = secrets.token_urlsafe(16)
-    data["sessions"][sid] = True
-    save_data(data)
-
-    resp = RedirectResponse("/", status_code=302)
-    resp.set_cookie("sid", sid, httponly=True, samesite="Lax")
-    return resp
-
-# ---------- HOME ----------
-@app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    data = load_data()
-    if not is_logged(request, data):
-        return RedirectResponse("/login", status_code=302)
-
-    # сортировка: новые сверху
-    links_sorted = dict(
-        sorted(
-            data["links"].items(),
-            key=lambda x: x[1]["created_at"],
-            reverse=True
-        )
-    )
-
-    last = request.cookies.get("last_link", "")
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "link": last,
-            "links": links_sorted
-        }
-    )
-
-# ---------- CREATE ----------
-@app.post("/create")
-def create(request: Request, target_url: str = Form(...)):
-    data = load_data()
-    if not is_logged(request, data):
-        return RedirectResponse("/login", status_code=302)
-
-    code = secrets.token_urlsafe(3)
-    data["links"][code] = {
-        "url": target_url,
-        "state": "NEW",
-        moscow_time = datetime.now(ZoneInfo("Europe/Moscow"))
-
-data["links"][code] = {
-    "url": target_url,
-    "state": "NEW",
-    "created_at": moscow_time.strftime("%d.%m.%Y %H:%M:%S")
+<style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial;
+  background: #f4f6f8;
+  margin: 0;
 }
-    save_data(data)
 
-    base = str(request.base_url).rstrip("/")
-    link = f"{base}/l/{code}"
+.container {
+  max-width: 720px;
+  margin: 60px auto;
+  background: #fff;
+  padding: 32px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
 
-    resp = RedirectResponse("/", status_code=302)
-    resp.set_cookie("last_link", link, max_age=3600, samesite="Lax")
-    return resp
+h1 {
+  margin-top: 0;
+  font-size: 22px;
+  color: #111827;
+}
 
-# ---------- STATUS ----------
-@app.get("/status")
-def status():
-    data = load_data()
-    return JSONResponse(data["links"])
+.form-row {
+  display: flex;
+  gap: 10px;
+}
 
-# ---------- LANDING ----------
-@app.get("/l/{code}", response_class=HTMLResponse)
-def landing(request: Request, code: str):
-    data = load_data()
-    link = data["links"].get(code)
+input[type="text"] {
+  flex: 1;
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+}
 
-    if not link or link["state"] == "USED":
-        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+button {
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  font-size: 15px;
+  cursor: pointer;
+}
 
-    if link["state"] == "OPENED":
-        return templates.TemplateResponse(
-            "password.html",
-            {"request": request, "code": code}
-        )
+button:hover {
+  background: #4338ca;
+}
 
-    return templates.TemplateResponse(
-        "open.html",
-        {"request": request, "code": code}
-    )
+.result {
+  margin-top: 16px;
+  display: flex;
+  gap: 10px;
+}
 
-# ---------- AUTO OPEN ----------
-@app.get("/open/{code}")
-def open_link(code: str):
-    data = load_data()
-    link = data["links"].get(code)
+.result input {
+  background: #f9fafb;
+}
 
-    if not link:
-        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+.history {
+  margin-top: 28px;
+}
 
-    if link["state"] == "NEW":
-        link["state"] = "OPENED"
-        save_data(data)
-        return RedirectResponse(link["url"], status_code=302)
+.history h2 {
+  font-size: 16px;
+  margin-bottom: 12px;
+  color: #374151;
+}
 
-    return RedirectResponse(f"/l/{code}", status_code=302)
+.history-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
 
-# ---------- PASSWORD ----------
-@app.post("/check-password")
-def check_password(code: str = Form(...), password: str = Form(...)):
-    data = load_data()
-    link = data["links"].get(code)
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+}
 
-    if not link or link["state"] != "OPENED":
-        return HTMLResponse("❌ Ссылка недействительна", status_code=410)
+.status-new { background: #facc15; }
+.status-opened { background: #22c55e; }
+.status-used { background: #ef4444; }
 
-    if password != REOPEN_PASSWORD:
-        return templates.TemplateResponse(
-            "password.html",
-            {"request": {}, "code": code, "error": True},
-            status_code=403
-        )
+.history-url {
+  font-size: 14px;
+  color: #374151;
+  word-break: break-all;
+}
 
-    link["state"] = "USED"
-    save_data(data)
-    return RedirectResponse(link["url"], status_code=302)
+.history-time {
+  font-size: 12px;
+  color: #6b7280;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <h1>Генерация одноразовой ссылки</h1>
+
+  <!-- ИСХОДНАЯ ССЫЛКА -->
+  <form method="post" action="/create">
+    <div class="form-row">
+      <input
+        type="text"
+        name="target_url"
+        placeholder="Вставьте ссылку"
+        value="{{ target }}"
+        required
+      >
+      <button type="submit">Сгенерировать</button>
+    </div>
+  </form>
+
+  <!-- ОДНОРАЗОВАЯ ССЫЛКА -->
+  {% if link %}
+  <div class="result">
+    <input
+      id="result"
+      type="text"
+      value="{{ link }}"
+      readonly
+    >
+    <button type="button" onclick="copyLink()">Скопировать</button>
+  </div>
+  {% endif %}
+
+  <!-- ИСТОРИЯ -->
+  <div class="history">
+    <h2>История ссылок</h2>
+
+    <div id="history">
+      {% for code, item in links.items() %}
+        <div class="history-item">
+          <span class="status-dot
+            {% if item.state == 'NEW' %}status-new
+            {% elif item.state == 'OPENED' %}status-opened
+            {% else %}status-used{% endif %}">
+          </span>
+          <div>
+            <div class="history-url">
+              {{ request.base_url }}l/{{ code }}
+            </div>
+            <div class="history-time">
+              {{ item.created_at }}
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<script>
+function copyLink() {
+  const input = document.getElementById('result');
+  input.select();
+  input.setSelectionRange(0, 99999);
+  document.execCommand("copy");
+}
+
+/* автообновление истории */
+setInterval(() => {
+  fetch('/status')
+    .then(r => r.json())
+    .then(data => {
+      const history = document.getElementById('history');
+      if (!history) return;
+
+      history.innerHTML = '';
+
+      Object.keys(data).reverse().forEach(code => {
+        const item = data[code];
+        let cls = 'status-new';
+        if (item.state === 'OPENED') cls = 'status-opened';
+        if (item.state === 'USED') cls = 'status-used';
+
+        history.innerHTML += `
+          <div class="history-item">
+            <span class="status-dot ${cls}"></span>
+            <div>
+              <div class="history-url">
+                ${location.origin}/l/${code}
+              </div>
+              <div class="history-time">
+                ${item.created_at || ''}
+              </div>
+            </div>
+          </div>`;
+      });
+    });
+}, 4000);
+</script>
+
+</body>
+</html>
 
 
 
