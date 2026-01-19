@@ -43,29 +43,18 @@ def init_db():
         client TEXT,
         uid TEXT
     )
-    
-    try:
-        cur.execute("ALTER TABLE links ADD COLUMN uid TEXT")
-    except sqlite3.OperationalError:
-        
+    """)
+
     cur.execute("""
-CREATE TABLE IF NOT EXISTS sessions (
-    sid TEXT PRIMARY KEY
-)
-""")
+    CREATE TABLE IF NOT EXISTS sessions (
+        sid TEXT PRIMARY KEY
+    )
+    """)
 
     db.commit()
     db.close()
 
 init_db()
-# =====================
-# UID
-# =====================
-def get_uid(request: Request) -> str:
-    uid = request.cookies.get("uid")
-    if not uid:
-        uid = secrets.token_urlsafe(8)
-    return uid
 
 # =====================
 # AUTH
