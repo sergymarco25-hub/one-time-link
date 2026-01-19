@@ -25,6 +25,7 @@ h1 {
   font-size: 22px;
 }
 
+/* ===== ФОРМА ===== */
 .form-row {
   display: flex;
   gap: 10px;
@@ -45,6 +46,7 @@ input.client { max-width: 160px; }
   margin-top: 12px;
 }
 
+/* ===== КНОПКИ ===== */
 button {
   margin-top: 10px;
   padding: 12px;
@@ -53,38 +55,64 @@ button {
   background: #4f46e5;
   color: #fff;
   cursor: pointer;
-  transition: transform .12s ease, box-shadow .12s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
 }
 
 button:active {
   transform: scale(0.96);
-  box-shadow: inset 0 4px 10px rgba(0,0,0,.15);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15) inset;
 }
 
 .copy-btn {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-/* pulse */
+/* анимация клика */
 @keyframes pulse {
   0% { transform: scale(1); }
   50% { transform: scale(1.04); }
   100% { transform: scale(1); }
 }
-button.pulse { animation: pulse .3s ease; }
 
-.history { margin-top: 30px; }
+button.pulse {
+  animation: pulse 0.3s ease;
+}
+
+/* ===== КНОПКА ИСТОРИИ ===== */
+.toggle-history {
+  margin-top: 24px;
+  background: transparent;
+  color: #4f46e5;
+  font-weight: 600;
+  padding: 0;
+}
+
+#arrow {
+  display: inline-block;
+  transition: transform 0.2s ease;
+}
+
+/* ===== ИСТОРИЯ ===== */
+.history {
+  margin-top: 20px;
+}
+
+.hidden {
+  display: none;
+}
 
 .history-item {
   display: flex;
+  align-items: flex-start;
   padding: 10px;
   border-radius: 8px;
   margin-bottom: 8px;
 }
 
 .row-active {
-  background: #ecfdf5;
+  background-color: #ecfdf5;
   border-left: 4px solid #22c55e;
+  padding-left: 10px;
 }
 
 .status-dot {
@@ -113,8 +141,18 @@ button.pulse { animation: pulse .3s ease; }
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input class="main" id="targetInput" name="target_url" placeholder="Вставьте ссылку" required>
-    <input class="client" name="client" placeholder="Поле">
+    <input
+      class="main"
+      id="targetInput"
+      name="target_url"
+      placeholder="Вставьте ссылку"
+      required
+    >
+    <input
+      class="client"
+      name="client"
+      placeholder="Поле"
+    >
   </div>
   <button type="submit">Сгенерировать</button>
 </form>
@@ -124,22 +162,28 @@ button.pulse { animation: pulse .3s ease; }
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
-<div class="history hidden" id="historyBlock">
-  <button class="toggle-history" onclick="toggleHistory()">
+<button class="toggle-history" onclick="toggleHistory()">
   История ссылок <span id="arrow">⌄</span>
 </button>
+
+<div class="history hidden" id="historyBlock">
 {% for code, item in links.items() %}
-<div class="history-item {% if item.state != 'NEW' %}row-active{% endif %}">
+<div class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}">
   <span class="status-dot
     {% if item.state == 'NEW' %}status-new
     {% elif item.state == 'OPENED' %}status-opened
-    {% else %}status-used{% endif %}">
+    {% elif item.state == 'USED' %}status-used
+    {% endif %}">
   </span>
+
   <div>
-    <div>{{ request.base_url }}l/{{ code }}{% if item.client %} — <b>{{ item.client }}</b>{% endif %}</div>
+    <div>
+      {{ request.base_url }}l/{{ code }}
+      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+    </div>
     <div class="history-time">Создана: {{ item.created_at }}</div>
     {% if item.opened_at %}
-      <div class="history-time">Открыта: {{ item.opened_at }}</div>
+    <div class="history-time">Открыта: {{ item.opened_at }}</div>
     {% endif %}
   </div>
 </div>
@@ -148,7 +192,7 @@ button.pulse { animation: pulse .3s ease; }
 </div>
 
 <script>
-// анимация кнопок
+/* ===== АНИМАЦИЯ КНОПОК ===== */
 document.querySelectorAll("button").forEach(btn => {
   btn.addEventListener("click", () => {
     btn.classList.remove("pulse");
@@ -157,35 +201,15 @@ document.querySelectorAll("button").forEach(btn => {
   });
 });
 
-// копирование
+/* ===== КОПИРОВАНИЕ ===== */
 function copyLink() {
   const input = document.getElementById("generatedLink");
   if (!input) return;
   input.select();
   document.execCommand("copy");
-  input.style.background = "#dcfce7";
-  setTimeout(() => input.style.background = "", 300);
 }
 
-// sessionStorage — ОДНА ВКЛАДКА
-{% if link %}
-sessionStorage.setItem("generatedLink", "{{ link }}");
-{% endif %}
-
-const saved = sessionStorage.getItem("generatedLink");
-if (saved && document.getElementById("generatedLink")) {
-  document.getElementById("generatedLink").value = saved;
-}
-
-const target = document.getElementById("targetInput");
-if (target) {
-  const t = sessionStorage.getItem("target_url");
-  if (t) target.value = t;
-  target.addEventListener("input", () => {
-    sessionStorage.setItem("target_url", target.value);
-  });
-}
-<script>
+/* ===== ИСТОРИЯ (СОХРАНЕНИЕ СОСТОЯНИЯ) ===== */
 function toggleHistory() {
   const block = document.getElementById("historyBlock");
   const arrow = document.getElementById("arrow");
@@ -203,16 +227,23 @@ function toggleHistory() {
   }
 }
 
-/* восстановление состояния */
 document.addEventListener("DOMContentLoaded", () => {
   const block = document.getElementById("historyBlock");
   const arrow = document.getElementById("arrow");
 
-  const saved = sessionStorage.getItem("history_open");
-  if (saved === "1") {
+  if (sessionStorage.getItem("history_open") === "1") {
     block.classList.remove("hidden");
     arrow.style.transform = "rotate(180deg)";
   }
+
+  const target = sessionStorage.getItem("target_url");
+  if (target) {
+    document.getElementById("targetInput").value = target;
+  }
+});
+
+document.getElementById("targetInput")?.addEventListener("input", e => {
+  sessionStorage.setItem("target_url", e.target.value);
 });
 </script>
 
