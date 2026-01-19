@@ -245,6 +245,21 @@ function copyLink() {
     input.style.background = "";
   }, 300);
 }
+    // ===== СОХРАНЕНИЕ ПОЛЯ ГЕНЕРАЦИИ (target_url) ДЛЯ КАЖДОЙ ВКЛАДКИ =====
+const targetInput = document.querySelector('input[name="target_url"]');
+
+if (targetInput) {
+  // восстановление при перезагрузке
+  const savedTarget = sessionStorage.getItem("target_url");
+  if (savedTarget) {
+    targetInput.value = savedTarget;
+  }
+
+  // сохранение при вводе
+  targetInput.addEventListener("input", () => {
+    sessionStorage.setItem("target_url", targetInput.value);
+  });
+}
 </script>
 </body>
 </html>
