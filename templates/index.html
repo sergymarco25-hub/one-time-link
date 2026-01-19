@@ -11,7 +11,95 @@ body {
   margin: 0;
 }
 
-/* ===== КНОПКА СКРЫТИЯ ССЫЛКИ ===== */
+/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
+.container {
+  max-width: 720px;
+  margin: 60px auto;
+  background: #fff;
+  padding: 32px;
+  border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.08);
+}
+
+h1 {
+  margin-top: 0;
+  font-size: 22px;
+}
+
+/* ===== ФОРМА ===== */
+.form-row {
+  display: flex;
+  gap: 10px;
+}
+
+input[type="text"] {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  box-sizing: border-box;
+}
+
+input.main { flex: 1; }
+input.client { max-width: 160px; }
+
+#generatedLink {
+  width: 100%;
+  margin-top: 12px;
+}
+
+/* ===== КНОПКИ ===== */
+button {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: none;
+  background: #4f46e5;
+  color: #fff;
+  cursor: pointer;
+}
+
+.copy-btn {
+  background: linear-gradient(135deg, #16a34a, #22c55e);
+}
+
+/* ===== ИСТОРИЯ ===== */
+.history {
+  margin-top: 30px;
+}
+
+.history-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 10px;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.row-active {
+  background-color: #ecfdf5;
+  border-left: 4px solid #22c55e;
+  padding-left: 10px;
+}
+
+/* ===== СТАТУСЫ ===== */
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+  margin-top: 6px;
+}
+
+.status-new { background: #facc15; }
+.status-opened { background: #22c55e; }
+.status-used { background: #ef4444; }
+
+.history-time {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+/* ===== КНОПКА СКРЫТИЯ (АРХИВ) ===== */
 .hide-btn {
   background: transparent;
   border: none;
@@ -23,6 +111,11 @@ body {
 
 .hide-btn:hover {
   opacity: 1;
+}
+
+/* ===== ТУСКЛАЯ ССЫЛКА ===== */
+.archived {
+  opacity: 0.35;
 }
 </style>
 
