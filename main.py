@@ -29,7 +29,6 @@ def init_db():
     db = get_db()
     cur = db.cursor()
 
-    # основная таблица
     cur.execute("""
     CREATE TABLE IF NOT EXISTS links (
         code TEXT PRIMARY KEY,
@@ -40,9 +39,7 @@ def init_db():
         client TEXT,
         uid TEXT
     )
-    """)
-
-    # если таблица была создана раньше — добавляем uid
+    
     try:
         cur.execute("ALTER TABLE links ADD COLUMN uid TEXT")
     except sqlite3.OperationalError:
@@ -128,13 +125,16 @@ def home(request: Request):
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
+    uid = get_uid(request)
+
     db = get_db()
     cur = db.cursor()
     cur.execute("""
         SELECT code, url, state, created_at, opened_at, client
         FROM links
+        WHERE uid = ?
         ORDER BY created_at DESC
-    """)
+    """, (uid,))
     rows = cur.fetchall()
     db.close()
 
@@ -149,7 +149,7 @@ def home(request: Request):
         for code, url, state, created_at, opened_at, client in rows
     }
 
-    return templates.TemplateResponse(
+    resp = templates.TemplateResponse(
         "index.html",
         {
             "request": request,
@@ -158,6 +158,10 @@ def home(request: Request):
             "target": request.cookies.get("last_target", "")
         }
     )
+
+    # сохраняем uid в браузере пользователя
+    resp.set_cookie("uid", uid, max_age=60*60*24*365)
+    return resp
 
 # =====================
 # CREATE LINK
