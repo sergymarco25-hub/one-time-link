@@ -104,11 +104,6 @@ def home(request: Request):
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
-    @app.get("/", response_class=HTMLResponse)
-def home(request: Request):
-    if not is_logged(request):
-        return RedirectResponse("/login", status_code=302)
-
     return templates.TemplateResponse(
         "index.html",
         {
@@ -117,8 +112,6 @@ def home(request: Request):
             "target": request.cookies.get("last_target", "")
         }
     )
-        for code, url, state, created_at, opened_at, client in rows
-    }
 
     return templates.TemplateResponse(
         "index.html",
