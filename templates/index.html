@@ -73,8 +73,10 @@ button {
   padding: 10px;
   border-radius: 8px;
   margin-bottom: 8px;
+  transition: opacity 0.25s ease;
 }
 
+/* активная (открытая) */
 .row-active {
   background-color: #ecfdf5;
   border-left: 4px solid #22c55e;
@@ -99,21 +101,22 @@ button {
   color: #6b7280;
 }
 
-/* ===== КНОПКА СКРЫТИЯ (АРХИВ) ===== */
+/* ===== КНОПКА АРХИВА (ГЛАЗ) ===== */
 .hide-btn {
   background: transparent;
   border: none;
   cursor: pointer;
   font-size: 16px;
   opacity: 0.4;
-  margin-left: 8px;
+  margin-left: auto;   /* ← важно, чтобы кнопка была справа */
+  padding: 4px;
 }
 
 .hide-btn:hover {
   opacity: 1;
 }
 
-/* ===== ТУСКЛАЯ ССЫЛКА ===== */
+/* ===== АРХИВ (ТУСКЛО) ===== */
 .archived {
   opacity: 0.35;
 }
