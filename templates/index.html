@@ -191,29 +191,54 @@ function renderHistory() {
   });
 }
 
-/* ===== СОХРАНЕНИЕ ССЫЛКИ ===== */
-{% if link %}
-addToHistory("{{ link }}", "{{ request.cookies.get('client','') }}");
-{% endif %}
+<script>
+/* ===== КОПИРОВАНИЕ ССЫЛКИ (БЕЗ ПОБОЧНЫХ ЭФФЕКТОВ) ===== */
+function copyLink() {
+  const input = document.getElementById("generatedLink");
+  if (!input) return;
 
-renderHistory();
+  input.select();
+  navigator.clipboard.writeText(input.value);
 
-/* ===== TOGGLE ===== */
-function toggleHistory() {
-  document.getElementById("history").classList.toggle("open");
+  // визуальный отклик
+  input.style.background = "#dcfce7";
+  setTimeout(() => {
+    input.style.background = "";
+  }, 300);
 }
-  
-  /* ===== СОХРАНЕНИЕ ПОЛЯ ВКЛАДКИ ===== */
+
+/* ===== ОТКРЫТИЕ / ЗАКРЫТИЕ ИСТОРИИ ===== */
+function toggleHistory() {
+  const history = document.getElementById("history");
+  if (!history) return;
+
+  history.classList.toggle("open");
+
+  // сохраняем состояние (открыта / закрыта)
+  localStorage.setItem(
+    "history_open",
+    history.classList.contains("open") ? "1" : "0"
+  );
+}
+
+/* ===== ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ИСТОРИИ ===== */
+document.addEventListener("DOMContentLoaded", () => {
+  const history = document.getElementById("history");
+  if (!history) return;
+
+  if (localStorage.getItem("history_open") === "1") {
+    history.classList.add("open");
+  }
+});
+
+/* ===== СОХРАНЕНИЕ ПОЛЯ ГЕНЕРАЦИИ (ТОЛЬКО ДЛЯ ЭТОЙ ВКЛАДКИ) ===== */
 const targetInput = document.getElementById("targetInput");
 if (targetInput) {
   const saved = sessionStorage.getItem("target_url");
   if (saved) targetInput.value = saved;
+
   targetInput.addEventListener("input", () => {
     sessionStorage.setItem("target_url", targetInput.value);
   });
 }
 </script>
-
-</body>
-</html>
-
