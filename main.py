@@ -10,17 +10,21 @@ from fastapi.templating import Jinja2Templates
 # =====================
 # НАСТРОЙКИ
 # =====================
-ADMIN_USER = "admin"
-ADMIN_PASS = "2345"
-ADMIN_USER = "admin2"
-ADMIN_PASS = "2346"
+
+# несколько администраторов
+USERS = {
+    "admin": "2345",
+    "admin2": "2346",
+}
+
+# пароль для повторного открытия ссылки
 REOPEN_PASSWORD = "7878"
 
 DB_PATH = "data.db"
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
-
+DB_PATH = "data.db"
 # =====================
 # DATABASE
 # =====================
@@ -83,18 +87,15 @@ def is_logged(request: Request) -> bool:
     return ok
 
 
-def get_uid(request: Request) -> str:
-    uid = request.cookies.get("uid")
+def get_current_user(request: Request) -> str | None:
+    return request.cookies.get("user")
     if not uid:
         uid = secrets.token_urlsafe(12)
     return uid
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
-    return templates.TemplateResponse(
-        "login.html",
-        {"request": request}
-    )
+    return templates.TemplateResponse("login.html", {"request": request})
 
 @app.post("/login")
 def login(
@@ -102,7 +103,7 @@ def login(
     username: str = Form(...),
     password: str = Form(...)
 ):
-    if username != ADMIN_USER or password != ADMIN_PASS:
+    if username not in USERS or USERS[username] != password:
         return templates.TemplateResponse(
             "login.html",
             {"request": request, "error": True},
@@ -110,6 +111,7 @@ def login(
         )
 
     sid = secrets.token_urlsafe(16)
+
     db = get_db()
     db.execute("INSERT OR IGNORE INTO sessions VALUES (?)", (sid,))
     db.commit()
@@ -117,6 +119,7 @@ def login(
 
     resp = RedirectResponse("/", status_code=302)
     resp.set_cookie("sid", sid, httponly=True, samesite="Lax")
+    resp.set_cookie("user", username, httponly=True, samesite="Lax")
     return resp
 
 # =====================
