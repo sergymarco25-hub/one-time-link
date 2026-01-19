@@ -64,7 +64,12 @@ button {
 
 /* ===== ИСТОРИЯ ===== */
 .history {
-  margin-top: 30px;
+  margin-top: 20px;
+  display: none;
+}
+
+.history.open {
+  display: block;
 }
 
 .history-item {
@@ -73,10 +78,10 @@ button {
   padding: 10px;
   border-radius: 8px;
   margin-bottom: 8px;
-  transition: opacity 0.25s ease;
+  transition: opacity .2s ease;
 }
 
-/* активная (открытая) */
+/* активная строка */
 .row-active {
   background-color: #ecfdf5;
   border-left: 4px solid #22c55e;
@@ -101,24 +106,23 @@ button {
   color: #6b7280;
 }
 
-/* ===== КНОПКА АРХИВА (ГЛАЗ) ===== */
+/* ===== АРХИВ (ТУСКЛО) ===== */
+.archived {
+  opacity: 0.35;
+}
+
+/* ===== КНОПКА ГЛАЗ ===== */
 .hide-btn {
   background: transparent;
   border: none;
   cursor: pointer;
   font-size: 16px;
   opacity: 0.4;
-  margin-left: auto;   /* ← важно, чтобы кнопка была справа */
-  padding: 4px;
+  margin-left: auto;
 }
 
 .hide-btn:hover {
   opacity: 1;
-}
-
-/* ===== АРХИВ (ТУСКЛО) ===== */
-.archived {
-  opacity: 0.35;
 }
 </style>
 </head>
@@ -134,6 +138,7 @@ button {
       class="main"
       id="targetInput"
       name="target_url"
+      value="{{ target }}"
       placeholder="Вставьте ссылку"
       required
     >
@@ -151,53 +156,39 @@ button {
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
-<div class="history-wrapper">
-  <div class="history-toggle" onclick="toggleHistory()">▼ История ссылок</div>
+<button onclick="toggleHistory()">История ссылок ⌄</button>
 
-  <div class="history" id="history">
-
+<div class="history" id="history">
 {% for code, item in links.items() %}
-<div class="history-item
-    {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}
-    "
-    data-code="{{ code }}"
->
+  <div class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}">
+    
+    <span class="status-dot
+      {% if item.state == 'NEW' %}status-new
+      {% elif item.state == 'OPENED' %}status-opened
+      {% elif item.state == 'USED' %}status-used
+      {% endif %}">
+    </span>
 
-  <span class="status-dot
-    {% if item.state == 'NEW' %}status-new
-    {% elif item.state == 'OPENED' %}status-opened
-    {% elif item.state == 'USED' %}status-used
-    {% endif %}">
-  </span>
-
-  <div style="flex:1">
     <div>
-      {{ request.base_url }}l/{{ code }}
-      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+      <div>
+        {{ request.base_url }}l/{{ code }}
+        {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+      </div>
+      <div class="history-time">Создана: {{ item.created_at }}</div>
+      {% if item.opened_at %}
+      <div class="history-time">Открыта: {{ item.opened_at }}</div>
+      {% endif %}
     </div>
 
-    <div class="history-time">Создана: {{ item.created_at }}</div>
-    {% if item.opened_at %}
-      <div class="history-time">Открыта: {{ item.opened_at }}</div>
-    {% endif %}
+    <button class="hide-btn" onclick="toggleArchive(this)">👁</button>
   </div>
-
-  <!-- 👁️ скрыть строку -->
-  <button class="hide-btn" onclick="hideRow('{{ code }}')">👁️</button>
-
-</div>
 {% endfor %}
+</div>
 
 </div>
 
 <script>
-/* ===== USER ID (у каждого свой) ===== */
-if (!localStorage.getItem("user_id")) {
-  localStorage.setItem("user_id", crypto.randomUUID());
-}
-const USER_ID = localStorage.getItem("user_id");
-
-/* ===== COPY ===== */
+/* ===== КОПИРОВАНИЕ ===== */
 function copyLink() {
   const input = document.getElementById("generatedLink");
   if (!input) return;
@@ -206,27 +197,33 @@ function copyLink() {
   setTimeout(() => input.style.background = "", 300);
 }
 
-/* ===== HISTORY TOGGLE ===== */
+/* ===== ИСТОРИЯ ===== */
 function toggleHistory() {
   const h = document.getElementById("history");
   h.classList.toggle("open");
   localStorage.setItem("history_open", h.classList.contains("open"));
 }
 
+/* восстановление состояния */
 document.addEventListener("DOMContentLoaded", () => {
-  // restore history state
   if (localStorage.getItem("history_open") === "true") {
     document.getElementById("history").classList.add("open");
   }
 
-  // restore target input per tab
-  const target = sessionStorage.getItem("target_url");
-  if (target) document.getElementById("targetInput").value = target;
+  const saved = sessionStorage.getItem("target_url");
+  if (saved) document.getElementById("targetInput").value = saved;
 });
 
 document.getElementById("targetInput").addEventListener("input", e => {
   sessionStorage.setItem("target_url", e.target.value);
 });
+
+/* ===== АРХИВ (ТУСКЛО) ===== */
+function toggleArchive(btn) {
+  const row = btn.closest(".history-item");
+  if (!row) return;
+  row.classList.toggle("archived");
+}
 </script>
 
 </body>
