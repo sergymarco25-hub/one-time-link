@@ -104,14 +104,26 @@ button {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input class="main" name="target_url" value="{{ target }}" placeholder="Вставьте ссылку" required>
-    <input class="client" name="client" placeholder="Поле">
+    <input
+      class="main"
+      id="targetInput"
+      name="target_url"
+      placeholder="Вставьте ссылку"
+      required
+    >
+
+    <input
+      class="client"
+      name="client"
+      placeholder="Поле"
+    >
   </div>
+
   <button type="submit">Сгенерировать</button>
 </form>
 
 {% if link %}
-<input id="generatedLink" readonly>
+<input id="generatedLink" value="{{ link }}" readonly>
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
@@ -201,6 +213,38 @@ document.querySelector("form").addEventListener("submit", () => {
     }
   }, 500);
 });
+</script>
+  <script>
+/* ========== СОХРАНЕНИЕ ССЫЛКИ В РАМКАХ ВКЛАДКИ ========== */
+
+// если сервер вернул новую ссылку — сохраняем её
+{% if link %}
+sessionStorage.setItem("generatedLink", "{{ link }}");
+{% endif %}
+
+// при загрузке страницы — восстанавливаем ссылку ТОЛЬКО для этой вкладки
+const savedLink = sessionStorage.getItem("generatedLink");
+if (savedLink) {
+  const field = document.getElementById("generatedLink");
+  if (field) {
+    field.value = savedLink;
+  }
+}
+
+/* ========== КОПИРОВАНИЕ ========== */
+function copyLink() {
+  const input = document.getElementById("generatedLink");
+  if (!input || !input.value) return;
+
+  input.select();
+  document.execCommand("copy");
+
+  // лёгкая анимация
+  input.style.background = "#dcfce7";
+  setTimeout(() => {
+    input.style.background = "";
+  }, 300);
+}
 </script>
 </body>
 </html>
