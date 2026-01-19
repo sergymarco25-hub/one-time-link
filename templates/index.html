@@ -111,7 +111,7 @@ button {
 </form>
 
 {% if link %}
-<input id="generatedLink" value="{{ link }}" readonly>
+<input id="generatedLink" readonly>
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
@@ -176,7 +176,32 @@ document.addEventListener("DOMContentLoaded", () => {
   inactive.forEach(i => history.appendChild(i));
 });
 </script>
+<script>
+function copyLink() {
+  const input = document.getElementById("generatedLink");
+  input.select();
+  input.setSelectionRange(0, 99999);
+  navigator.clipboard.writeText(input.value);
+}
 
+/* сохраняем ссылку ТОЛЬКО В ЭТОЙ ВКЛАДКЕ */
+document.addEventListener("DOMContentLoaded", () => {
+  const saved = localStorage.getItem("generated_link");
+  if (saved) {
+    document.getElementById("generatedLink").value = saved;
+  }
+});
+
+/* перехватываем submit формы */
+document.querySelector("form").addEventListener("submit", () => {
+  setTimeout(() => {
+    const input = document.getElementById("generatedLink");
+    if (input && input.value) {
+      localStorage.setItem("generated_link", input.value);
+    }
+  }, 500);
+});
+</script>
 </body>
 </html>
 
