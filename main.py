@@ -59,8 +59,10 @@ def init_db():
     db.close()
 
 init_db()
-# ===== UID пользователя =====
-def get_uid(request: Request):
+# =====================
+# UID
+# =====================
+def get_uid(request: Request) -> str:
     uid = request.cookies.get("uid")
     if not uid:
         uid = secrets.token_urlsafe(12)
@@ -80,7 +82,9 @@ def is_logged(request: Request) -> bool:
     ok = cur.fetchone() is not None
     db.close()
     return ok
-    def get_uid(request: Request):
+
+
+def get_uid(request: Request) -> str:
     uid = request.cookies.get("uid")
     if not uid:
         uid = secrets.token_urlsafe(12)
