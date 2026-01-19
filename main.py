@@ -99,24 +99,40 @@ def login(
 # =====================
 # HOME
 # =====================
+# =====================
+# HOME
+# =====================
 @app.get("/", response_class=HTMLResponse)
 def home(request: Request):
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
-    return templates.TemplateResponse(
-        "index.html",
-        {
-            "request": request,
-            "link": request.cookies.get("last_link", ""),
-            "target": request.cookies.get("last_target", "")
+    db = get_db()
+    cur = db.cursor()
+    cur.execute("""
+        SELECT code, url, state, created_at, opened_at, client
+        FROM links
+        ORDER BY created_at DESC
+    """)
+    rows = cur.fetchall()
+    db.close()
+
+    links = {
+        code: {
+            "url": url,
+            "state": state,
+            "created_at": created_at,
+            "opened_at": opened_at,
+            "client": client
         }
-    )
+        for code, url, state, created_at, opened_at, client in rows
+    }
 
     return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
+            "links": links,
             "link": request.cookies.get("last_link", ""),
             "target": request.cookies.get("last_target", "")
         }
