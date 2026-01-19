@@ -216,6 +216,15 @@ button:active {
     </div>
     {% endif %}
   </div>
+      <div>
+    {{ request.base_url }}l/{{ code }}
+    {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+  </div>
+  <div class="history-time">Создана: {{ item.created_at }}</div>
+  {% if item.opened_at %}
+  <div class="history-time">Открыта: {{ item.opened_at }}</div>
+  {% endif %}
+</div>
 
   <!-- 🗑 УДАЛЕНИЕ -->
   <div class="delete-box">
