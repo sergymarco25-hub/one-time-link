@@ -25,7 +25,7 @@ h1 {
   font-size: 22px;
 }
 
-/* ===== ФОРМА ===== */
+/* ===== FORM ===== */
 .form-row {
   display: flex;
   gap: 10px;
@@ -46,7 +46,7 @@ input.client { max-width: 160px; }
   margin-top: 12px;
 }
 
-/* ===== КНОПКИ ===== */
+/* ===== BUTTONS ===== */
 button {
   margin-top: 10px;
   padding: 12px;
@@ -67,9 +67,20 @@ button:active {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-/* ===== ИСТОРИЯ ===== */
-.history {
+/* ===== HISTORY ===== */
+.history-wrapper {
   margin-top: 30px;
+}
+
+.history-toggle {
+  cursor: pointer;
+  font-size: 14px;
+  color: #4f46e5;
+  user-select: none;
+  margin-bottom: 10px;
+}
+
+.history {
   display: none;
 }
 
@@ -107,13 +118,6 @@ button:active {
   font-size: 12px;
   color: #6b7280;
 }
-
-/* ===== КНОПКА ИСТОРИИ ===== */
-.toggle-history {
-  margin-top: 20px;
-  background: #e5e7eb;
-  color: #111827;
-}
 </style>
 </head>
 
@@ -124,8 +128,18 @@ button:active {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input class="main" id="targetInput" name="target_url" placeholder="Вставьте ссылку" required>
-    <input class="client" name="client" placeholder="Поле">
+    <input
+      class="main"
+      id="targetInput"
+      name="target_url"
+      placeholder="Вставьте ссылку"
+      required
+    >
+    <input
+      class="client"
+      name="client"
+      placeholder="Поле"
+    >
   </div>
   <button type="submit">Сгенерировать</button>
 </form>
@@ -135,110 +149,77 @@ button:active {
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
-<button class="toggle-history" onclick="toggleHistory()">▼ История ссылок</button>
+<div class="history-wrapper">
+  <div class="history-toggle" onclick="toggleHistory()">▼ История ссылок</div>
 
-<div class="history" id="history"></div>
+  <div class="history" id="history">
+    {% for code, item in links.items() %}
+    <div class="history-item
+      {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}
+      "
+      data-user="{{ item.client }}"
+    >
+      <span class="status-dot
+        {% if item.state == 'NEW' %}status-new
+        {% elif item.state == 'OPENED' %}status-opened
+        {% elif item.state == 'USED' %}status-used
+        {% endif %}">
+      </span>
+
+      <div>
+        <div>
+          {{ request.base_url }}l/{{ code }}
+          {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+        </div>
+        <div class="history-time">Создана: {{ item.created_at }}</div>
+        {% if item.opened_at %}
+        <div class="history-time">Открыта: {{ item.opened_at }}</div>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
 </div>
 
 <script>
-/* ===== КОПИРОВАНИЕ ===== */
+/* ===== USER ID (у каждого свой) ===== */
+if (!localStorage.getItem("user_id")) {
+  localStorage.setItem("user_id", crypto.randomUUID());
+}
+const USER_ID = localStorage.getItem("user_id");
+
+/* ===== COPY ===== */
 function copyLink() {
   const input = document.getElementById("generatedLink");
   if (!input) return;
-  input.select();
   navigator.clipboard.writeText(input.value);
   input.style.background = "#dcfce7";
   setTimeout(() => input.style.background = "", 300);
 }
 
-/* ===== ИСТОРИЯ (LOCALSTORAGE) ===== */
-const HISTORY_KEY = "user_link_history";
-
-function loadHistory() {
-  return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
-}
-
-function saveHistory(data) {
-  localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
-}
-
-function addToHistory(link, client) {
-  const history = loadHistory();
-  history.unshift({
-    link,
-    client,
-    time: new Date().toLocaleString("ru-RU")
-  });
-  saveHistory(history);
-}
-
-function renderHistory() {
-  const historyEl = document.getElementById("history");
-  const history = loadHistory();
-  historyEl.innerHTML = "";
-
-  history.forEach(item => {
-    const div = document.createElement("div");
-    div.className = "history-item row-active";
-    div.innerHTML = `
-      <span class="status-dot status-opened"></span>
-      <div>
-        <div>${item.link} ${item.client ? "— <b>"+item.client+"</b>" : ""}</div>
-        <div class="history-time">${item.time}</div>
-      </div>
-    `;
-    historyEl.appendChild(div);
-  });
-}
-
-<script>
-/* ===== КОПИРОВАНИЕ ССЫЛКИ (БЕЗ ПОБОЧНЫХ ЭФФЕКТОВ) ===== */
-function copyLink() {
-  const input = document.getElementById("generatedLink");
-  if (!input) return;
-
-  input.select();
-  navigator.clipboard.writeText(input.value);
-
-  // визуальный отклик
-  input.style.background = "#dcfce7";
-  setTimeout(() => {
-    input.style.background = "";
-  }, 300);
-}
-
-/* ===== ОТКРЫТИЕ / ЗАКРЫТИЕ ИСТОРИИ ===== */
+/* ===== HISTORY TOGGLE ===== */
 function toggleHistory() {
-  const history = document.getElementById("history");
-  if (!history) return;
-
-  history.classList.toggle("open");
-
-  // сохраняем состояние (открыта / закрыта)
-  localStorage.setItem(
-    "history_open",
-    history.classList.contains("open") ? "1" : "0"
-  );
+  const h = document.getElementById("history");
+  h.classList.toggle("open");
+  localStorage.setItem("history_open", h.classList.contains("open"));
 }
 
-/* ===== ВОССТАНОВЛЕНИЕ СОСТОЯНИЯ ИСТОРИИ ===== */
 document.addEventListener("DOMContentLoaded", () => {
-  const history = document.getElementById("history");
-  if (!history) return;
-
-  if (localStorage.getItem("history_open") === "1") {
-    history.classList.add("open");
+  // restore history state
+  if (localStorage.getItem("history_open") === "true") {
+    document.getElementById("history").classList.add("open");
   }
+
+  // restore target input per tab
+  const target = sessionStorage.getItem("target_url");
+  if (target) document.getElementById("targetInput").value = target;
 });
 
-/* ===== СОХРАНЕНИЕ ПОЛЯ ГЕНЕРАЦИИ (ТОЛЬКО ДЛЯ ЭТОЙ ВКЛАДКИ) ===== */
-const targetInput = document.getElementById("targetInput");
-if (targetInput) {
-  const saved = sessionStorage.getItem("target_url");
-  if (saved) targetInput.value = saved;
-
-  targetInput.addEventListener("input", () => {
-    sessionStorage.setItem("target_url", targetInput.value);
-  });
-}
+document.getElementById("targetInput").addEventListener("input", e => {
+  sessionStorage.setItem("target_url", e.target.value);
+});
 </script>
+
+</body>
+</html>
