@@ -79,7 +79,13 @@ def get_uid(request: Request) -> str:
         uid = secrets.token_urlsafe(12)
     return uid
 
-
+@app.get("/login", response_class=HTMLResponse)
+def login_page(request: Request):
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request}
+    )
+    
 @app.post("/login")
 def login(
     request: Request,
