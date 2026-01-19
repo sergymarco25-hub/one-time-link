@@ -10,6 +10,33 @@ body {
   background: #f4f6f8;
   margin: 0;
 }
+  button {
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15) inset;
+}
+
+/* Анимация успеха */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
+}
+
+button.pulse {
+  animation: pulse 0.3s ease;
+}
+  // ===== АНИМАЦИЯ КНОПОК =====
+document.querySelectorAll("button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    btn.classList.remove("pulse");
+    void btn.offsetWidth; // перезапуск анимации
+    btn.classList.add("pulse");
+  });
+});
 
 .container {
   max-width: 720px;
