@@ -24,24 +24,6 @@ h1 {
   margin-top: 0;
   font-size: 22px;
 }
-  
-  /* ===== ARCHIVE ===== */
-.history-item.archived {
-  opacity: 0.35;
-  background: transparent !important;
-  border-left: none !important;
-}
-
-.archive-btn {
-  margin-left: auto;
-  cursor: pointer;
-  font-size: 14px;
-  user-select: none;
-}
-
-.archive-btn span {
-  margin-left: 6px;
-}
 
 /* ===== FORM ===== */
 .form-row {
@@ -174,13 +156,9 @@ button:active {
     {% for code, item in links.items() %}
     <div class="history-item
       {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}
-"
-data-code="{{ code }}"
->
-      <div class="archive-btn">
-  <span onclick="archiveLink('{{ code }}')">🗑</span>
-  <span onclick="restoreLink('{{ code }}')">📦</span>
-</div>
+      "
+      data-user="{{ item.client }}"
+    >
       <span class="status-dot
         {% if item.state == 'NEW' %}status-new
         {% elif item.state == 'OPENED' %}status-opened
@@ -241,56 +219,7 @@ document.addEventListener("DOMContentLoaded", () => {
 document.getElementById("targetInput").addEventListener("input", e => {
   sessionStorage.setItem("target_url", e.target.value);
 });
-<script>
-/* ===== ARCHIVE LOGIC ===== */
-
-const ARCHIVE_KEY = "archived_links";
-
-/* получить архив */
-function getArchived() {
-  return JSON.parse(localStorage.getItem(ARCHIVE_KEY) || "[]");
-}
-
-/* сохранить архив */
-function saveArchived(list) {
-  localStorage.setItem(ARCHIVE_KEY, JSON.stringify(list));
-}
-
-/* архивировать */
-function archiveLink(code) {
-  const archived = getArchived();
-  if (!archived.includes(code)) {
-    archived.push(code);
-    saveArchived(archived);
-  }
-  applyArchive();
-}
-
-/* вернуть из архива */
-function restoreLink(code) {
-  let archived = getArchived();
-  archived = archived.filter(c => c !== code);
-  saveArchived(archived);
-  applyArchive();
-}
-
-/* применить архив ко всем строкам */
-function applyArchive() {
-  const archived = getArchived();
-  document.querySelectorAll(".history-item").forEach(row => {
-    const code = row.dataset.code;
-    if (archived.includes(code)) {
-      row.classList.add("archived");
-    } else {
-      row.classList.remove("archived");
-    }
-  });
-}
-
-/* при загрузке */
-document.addEventListener("DOMContentLoaded", applyArchive);
 </script>
 
 </body>
 </html>
-
