@@ -80,6 +80,11 @@ def is_logged(request: Request) -> bool:
     ok = cur.fetchone() is not None
     db.close()
     return ok
+    def get_uid(request: Request):
+    uid = request.cookies.get("uid")
+    if not uid:
+        uid = secrets.token_urlsafe(12)
+    return uid
 
 @app.get("/login", response_class=HTMLResponse)
 def login_page(request: Request):
@@ -111,9 +116,6 @@ def login(
     resp.set_cookie("sid", sid, httponly=True, samesite="Lax")
     return resp
 
-# =====================
-# HOME
-# =====================
 # =====================
 # HOME
 # =====================
@@ -165,18 +167,13 @@ def create(
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
-    # ✅ UID пользователя (один на браузер)
     uid = get_uid(request)
 
-    # ✅ код ссылки
     code = secrets.token_urlsafe(3)
-
-    # ✅ время (Москва)
     created_at = datetime.now(
         ZoneInfo("Europe/Moscow")
     ).strftime("%d.%m.%Y %H:%M:%S")
 
-    # ✅ запись в БД
     db = get_db()
     db.execute(
         """
@@ -196,20 +193,13 @@ def create(
     db.commit()
     db.close()
 
-    # ✅ ссылка
     base = str(request.base_url).rstrip("/")
     one_time_link = f"{base}/l/{code}"
 
-    # ✅ ответ
     resp = RedirectResponse("/", status_code=302)
-
-    # сохраняем uid (ВАЖНО)
-    resp.set_cookie("uid", uid, max_age=60 * 60 * 24 * 365)
-
-    # сохраняем последнюю ссылку (как раньше)
+    resp.set_cookie("uid", uid, max_age=60*60*24*365)
     resp.set_cookie("last_link", one_time_link, max_age=3600)
     resp.set_cookie("last_target", target_url, max_age=3600)
-
     return resp
 # =====================
 # STATUS (для автообновления)
