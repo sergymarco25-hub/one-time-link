@@ -11,7 +11,6 @@ body {
   margin: 0;
 }
 
-/* ===== ОСНОВНОЙ КОНТЕЙНЕР ===== */
 .container {
   max-width: 720px;
   margin: 60px auto;
@@ -26,7 +25,7 @@ h1 {
   font-size: 22px;
 }
 
-/* ===== ФОРМА ===== */
+/* ===== FORM ===== */
 .form-row {
   display: flex;
   gap: 10px;
@@ -47,7 +46,7 @@ input.client { max-width: 160px; }
   margin-top: 12px;
 }
 
-/* ===== КНОПКИ ===== */
+/* ===== BUTTONS ===== */
 button {
   margin-top: 10px;
   padding: 12px;
@@ -56,15 +55,32 @@ button {
   background: #4f46e5;
   color: #fff;
   cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.15) inset;
 }
 
 .copy-btn {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-/* ===== ИСТОРИЯ ===== */
+/* ===== HISTORY ===== */
+.history-wrapper {
+  margin-top: 30px;
+}
+
+.history-toggle {
+  cursor: pointer;
+  font-size: 14px;
+  color: #4f46e5;
+  user-select: none;
+  margin-bottom: 10px;
+}
+
 .history {
-  margin-top: 20px;
   display: none;
 }
 
@@ -78,17 +94,20 @@ button {
   padding: 10px;
   border-radius: 8px;
   margin-bottom: 8px;
-  transition: opacity .2s ease;
 }
 
-/* активная строка */
 .row-active {
   background-color: #ecfdf5;
   border-left: 4px solid #22c55e;
   padding-left: 10px;
 }
 
-/* ===== СТАТУСЫ ===== */
+/* ===== ARCHIVE (ТУСКЛО) ===== */
+.archived {
+  opacity: 0.35;
+}
+
+/* ===== STATUS DOT ===== */
 .status-dot {
   width: 10px;
   height: 10px;
@@ -106,22 +125,17 @@ button {
   color: #6b7280;
 }
 
-/* ===== АРХИВ (ТУСКЛО) ===== */
-.archived {
-  opacity: 0.35;
-}
-
-/* ===== КНОПКА ГЛАЗ ===== */
-.hide-btn {
-  background: transparent;
+/* ===== EYE BUTTON ===== */
+.eye-btn {
+  background: none;
   border: none;
   cursor: pointer;
+  margin-left: auto;
   font-size: 16px;
   opacity: 0.4;
-  margin-left: auto;
 }
 
-.hide-btn:hover {
+.eye-btn:hover {
   opacity: 1;
 }
 </style>
@@ -138,7 +152,6 @@ button {
       class="main"
       id="targetInput"
       name="target_url"
-      value="{{ target }}"
       placeholder="Вставьте ссылку"
       required
     >
@@ -156,39 +169,42 @@ button {
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
-<button onclick="toggleHistory()">История ссылок ⌄</button>
+<div class="history-wrapper">
+  <div class="history-toggle" onclick="toggleHistory()">▼ История ссылок</div>
 
-<div class="history" id="history">
-{% for code, item in links.items() %}
-  <div class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}">
-    
-    <span class="status-dot
-      {% if item.state == 'NEW' %}status-new
-      {% elif item.state == 'OPENED' %}status-opened
-      {% elif item.state == 'USED' %}status-used
-      {% endif %}">
-    </span>
+  <div class="history" id="history">
+    {% for code, item in links.items() %}
+    <div
+      class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}"
+      data-code="{{ code }}"
+    >
+      <span class="status-dot
+        {% if item.state == 'NEW' %}status-new
+        {% elif item.state == 'OPENED' %}status-opened
+        {% elif item.state == 'USED' %}status-used
+        {% endif %}">
+      </span>
 
-    <div>
       <div>
-        {{ request.base_url }}l/{{ code }}
-        {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+        <div>
+          {{ request.base_url }}l/{{ code }}
+          {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+        </div>
+        <div class="history-time">Создана: {{ item.created_at }}</div>
+        {% if item.opened_at %}
+        <div class="history-time">Открыта: {{ item.opened_at }}</div>
+        {% endif %}
       </div>
-      <div class="history-time">Создана: {{ item.created_at }}</div>
-      {% if item.opened_at %}
-      <div class="history-time">Открыта: {{ item.opened_at }}</div>
-      {% endif %}
+
+      <button class="eye-btn" onclick="toggleArchive('{{ code }}')">👁</button>
     </div>
-
-    <button class="hide-btn" onclick="toggleArchive(this)">👁</button>
+    {% endfor %}
   </div>
-{% endfor %}
 </div>
-
 </div>
 
 <script>
-/* ===== КОПИРОВАНИЕ ===== */
+/* ===== COPY ===== */
 function copyLink() {
   const input = document.getElementById("generatedLink");
   if (!input) return;
@@ -197,33 +213,48 @@ function copyLink() {
   setTimeout(() => input.style.background = "", 300);
 }
 
-/* ===== ИСТОРИЯ ===== */
+  /* ===== HISTORY TOGGLE ===== */
 function toggleHistory() {
   const h = document.getElementById("history");
   h.classList.toggle("open");
   localStorage.setItem("history_open", h.classList.contains("open"));
 }
 
-/* восстановление состояния */
+/* ===== ARCHIVE TOGGLE ===== */
+function toggleArchive(code) {
+  const row = document.querySelector(`[data-code="${code}"]`);
+  if (!row) return;
+
+  row.classList.toggle("archived");
+
+  const archived = JSON.parse(localStorage.getItem("archived_links") || "{}");
+  archived[code] = row.classList.contains("archived");
+  localStorage.setItem("archived_links", JSON.stringify(archived));
+}
+
 document.addEventListener("DOMContentLoaded", () => {
+  // restore history open state
   if (localStorage.getItem("history_open") === "true") {
     document.getElementById("history").classList.add("open");
   }
 
-  const saved = sessionStorage.getItem("target_url");
-  if (saved) document.getElementById("targetInput").value = saved;
+  // restore archived rows
+  const archived = JSON.parse(localStorage.getItem("archived_links") || "{}");
+  Object.keys(archived).forEach(code => {
+    if (archived[code]) {
+      const row = document.querySelector(`[data-code="${code}"]`);
+      if (row) row.classList.add("archived");
+    }
+  });
+
+  // restore input per tab
+  const target = sessionStorage.getItem("target_url");
+  if (target) document.getElementById("targetInput").value = target;
 });
 
 document.getElementById("targetInput").addEventListener("input", e => {
   sessionStorage.setItem("target_url", e.target.value);
 });
-
-/* ===== АРХИВ (ТУСКЛО) ===== */
-function toggleArchive(btn) {
-  const row = btn.closest(".history-item");
-  if (!row) return;
-  row.classList.toggle("archived");
-}
 </script>
 
 </body>
