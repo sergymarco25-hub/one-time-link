@@ -107,7 +107,8 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     sid = secrets.token_urlsafe(16)
 
     db = get_db()
-    db.execute("INSERT OR IGNORE INTO sessions (sid) VALUES (?)", (sid,))
+    db.execute("""
+    INSERT OR IGNORE INTO sessions (sid) VALUES (?)", (sid,))
     db.commit()
     db.close()
 
@@ -181,7 +182,7 @@ def create(
 
     db = get_db()
     db.execute("""
-INSERT INTO links (code, url, state, created_at, opened_at, client, uid)
+    INSERT INTO links (code, url, state, created_at, opened_at, client, uid)
 VALUES (?, ?, ?, ?, ?, ?, ?)
 """, (
     code,
