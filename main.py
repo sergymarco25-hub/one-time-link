@@ -11,8 +11,7 @@ from fastapi.templating import Jinja2Templates
 # НАСТРОЙКИ
 # =====================
 
-# несколько администраторов
-USERS = {
+ADMINS = {
     "admin": "2345",
     "admin2": "2346",
 }
@@ -103,12 +102,12 @@ def login(
     username: str = Form(...),
     password: str = Form(...)
 ):
-    if username not in USERS or USERS[username] != password:
-        return templates.TemplateResponse(
-            "login.html",
-            {"request": request, "error": True},
-            status_code=403
-        )
+    if username not in ADMINS or ADMINS[username] != password:
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "error": True},
+        status_code=403
+    )
 
     sid = secrets.token_urlsafe(16)
 
