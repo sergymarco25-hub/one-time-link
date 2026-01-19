@@ -11,6 +11,21 @@ body {
   margin: 0;
 }
 
+/* ===== КНОПКА СКРЫТИЯ ССЫЛКИ ===== */
+.hide-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.4;
+  margin-left: 8px;
+}
+
+.hide-btn:hover {
+  opacity: 1;
+}
+</style>
+
 .container {
   max-width: 720px;
   margin: 60px auto;
@@ -153,33 +168,39 @@ button:active {
   <div class="history-toggle" onclick="toggleHistory()">▼ История ссылок</div>
 
   <div class="history" id="history">
-    {% for code, item in links.items() %}
-    <div class="history-item
-      {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}
-      "
-      data-user="{{ item.client }}"
-    >
-      <span class="status-dot
-        {% if item.state == 'NEW' %}status-new
-        {% elif item.state == 'OPENED' %}status-opened
-        {% elif item.state == 'USED' %}status-used
-        {% endif %}">
-      </span>
 
-      <div>
-        <div>
-          {{ request.base_url }}l/{{ code }}
-          {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
-        </div>
-        <div class="history-time">Создана: {{ item.created_at }}</div>
-        {% if item.opened_at %}
-        <div class="history-time">Открыта: {{ item.opened_at }}</div>
-        {% endif %}
-      </div>
+{% for code, item in links.items() %}
+<div class="history-item
+    {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}
+    "
+    data-code="{{ code }}"
+>
+
+  <span class="status-dot
+    {% if item.state == 'NEW' %}status-new
+    {% elif item.state == 'OPENED' %}status-opened
+    {% elif item.state == 'USED' %}status-used
+    {% endif %}">
+  </span>
+
+  <div style="flex:1">
+    <div>
+      {{ request.base_url }}l/{{ code }}
+      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
     </div>
-    {% endfor %}
+
+    <div class="history-time">Создана: {{ item.created_at }}</div>
+    {% if item.opened_at %}
+      <div class="history-time">Открыта: {{ item.opened_at }}</div>
+    {% endif %}
   </div>
+
+  <!-- 👁️ скрыть строку -->
+  <button class="hide-btn" onclick="hideRow('{{ code }}')">👁️</button>
+
 </div>
+{% endfor %}
+
 </div>
 
 <script>
