@@ -25,6 +25,39 @@ h1 {
   font-size: 22px;
 }
 
+  .delete-box {
+  margin-left: auto;
+  position: relative;
+}
+
+.trash {
+  cursor: pointer;
+  font-size: 16px;
+  opacity: 0.6;
+}
+
+.trash:hover {
+  opacity: 1;
+}
+
+.confirm-delete {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: 20px;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.delete-box.open .confirm-delete {
+  display: block;
+}
+
 /* ===== FORM ===== */
 .form-row {
   display: flex;
@@ -158,7 +191,42 @@ button:active {
       {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}
       "
       data-user="{{ item.client }}"
-    >
+>
+
+  <span class="status-dot
+    {% if item.state == 'NEW' %}status-new
+    {% elif item.state == 'OPENED' %}status-opened
+    {% elif item.state == 'USED' %}status-used
+    {% endif %}
+  "></span>
+
+  <div class="history-content">
+    <div>
+      {{ request.base_url }}l/{{ code }}
+      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
+    </div>
+
+    <div class="history-time">
+      Создана: {{ item.created_at }}
+    </div>
+
+    {% if item.opened_at %}
+    <div class="history-time">
+      Открыта: {{ item.opened_at }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- 🗑 УДАЛЕНИЕ -->
+  <div class="delete-box">
+    <span class="trash" onclick="toggleDelete(this)">🗑</span>
+    <span class="confirm-delete"
+          onclick="deleteRow(this, '{{ code }}')">
+      Удалить
+    </span>
+  </div>
+
+</div>
       <span class="status-dot
         {% if item.state == 'NEW' %}status-new
         {% elif item.state == 'OPENED' %}status-opened
@@ -221,5 +289,29 @@ document.getElementById("targetInput").addEventListener("input", e => {
 });
 </script>
 
+  <!-- ===== УДАЛЕНИЕ ССЫЛКИ ИЗ ИСТОРИИ ===== -->
+<script>
+function toggleDelete(el) {
+  const box = el.parentElement;
+  box.classList.toggle("active");
+}
+
+function deleteRow(el, code) {
+  const confirmBox = el.nextElementSibling;
+  if (!confirmBox) return;
+
+  fetch("/delete/" + code, { method: "POST" })
+    .then(() => {
+      const row = el.closest(".history-item");
+      if (row) {
+        row.style.opacity = "0";
+        row.style.transform = "translateX(20px)";
+        setTimeout(() => row.remove(), 300);
+      }
+    });
+}
+</script>
+
 </body>
 </html>
+
