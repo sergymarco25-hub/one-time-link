@@ -91,10 +91,6 @@ def get_current_user(request: Request) -> str | None:
         uid = secrets.token_urlsafe(12)
     return uid
 
-@app.get("/login", response_class=HTMLResponse)
-def login_page(request: Request):
-    return templates.TemplateResponse("login.html", {"request": request})
-
 @app.post("/login")
 def login(request: Request, username: str = Form(...), password: str = Form(...)):
     if username not in ADMINS or ADMINS[username] != password:
@@ -105,15 +101,16 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
         )
 
     sid = secrets.token_urlsafe(16)
+    uid = get_uid(request)
 
     db = get_db()
-    db.execute("""
-    INSERT OR IGNORE INTO sessions (sid) VALUES (?)", (sid,))
+    db.execute("INSERT OR IGNORE INTO sessions (sid) VALUES (?)", (sid,))
     db.commit()
     db.close()
 
     resp = RedirectResponse("/", status_code=302)
     resp.set_cookie("sid", sid, httponly=True, samesite="Lax")
+    resp.set_cookie("uid", uid, max_age=60 * 60 * 24 * 365)
     return resp
 # =====================
 # HOME
@@ -127,12 +124,15 @@ def home(request: Request):
 
     db = get_db()
     cur = db.cursor()
-    cur.execute("""
+    cur.execute(
+        """
         SELECT code, url, state, created_at, opened_at, client
         FROM links
-        WHERE uid = ?
+        WHERE uid=?
         ORDER BY created_at DESC
-    """, (uid,))
+        """,
+        (uid,)
+    )
     rows = cur.fetchall()
     db.close()
 
@@ -147,7 +147,7 @@ def home(request: Request):
         for code, url, state, created_at, opened_at, client in rows
     }
 
-    resp = templates.TemplateResponse(
+    return templates.TemplateResponse(
         "index.html",
         {
             "request": request,
@@ -156,11 +156,6 @@ def home(request: Request):
             "target": request.cookies.get("last_target", "")
         }
     )
-
-    # сохраняем uid в браузере пользователя
-    resp.set_cookie("uid", uid, max_age=60*60*24*365)
-    return resp
-
 # =====================
 # CREATE LINK
 # =====================
@@ -174,25 +169,28 @@ def create(
         return RedirectResponse("/login", status_code=302)
 
     uid = get_uid(request)
-
     code = secrets.token_urlsafe(3)
+
     created_at = datetime.now(
         ZoneInfo("Europe/Moscow")
     ).strftime("%d.%m.%Y %H:%M:%S")
 
     db = get_db()
-    db.execute("""
-    INSERT INTO links (code, url, state, created_at, opened_at, client, uid)
-VALUES (?, ?, ?, ?, ?, ?, ?)
-""", (
-    code,
-    target_url,
-    "NEW",
-    created_at,
-    None,
-    client.strip(),
-    uid
-))
+    db.execute(
+        """
+        INSERT INTO links (code, url, state, created_at, opened_at, client, uid)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            code,
+            target_url,
+            "NEW",
+            created_at,
+            None,
+            client.strip(),
+            uid
+        )
+    )
     db.commit()
     db.close()
 
@@ -200,9 +198,9 @@ VALUES (?, ?, ?, ?, ?, ?, ?)
     one_time_link = f"{base}/l/{code}"
 
     resp = RedirectResponse("/", status_code=302)
-    resp.set_cookie("uid", uid, max_age=60*60*24*365)
     resp.set_cookie("last_link", one_time_link, max_age=3600)
     resp.set_cookie("last_target", target_url, max_age=3600)
+    resp.set_cookie("uid", uid, max_age=60 * 60 * 24 * 365)
     return resp
 # =====================
 # STATUS (для автообновления)
