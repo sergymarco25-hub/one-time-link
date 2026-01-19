@@ -205,29 +205,6 @@ def create(
     resp.set_cookie("uid", uid, max_age=60 * 60 * 24 * 365)
     return resp
 # =====================
-# DELETE LINK
-# =====================
-@app.post("/delete/{code}")
-def delete_link(request: Request, code: str):
-    if not is_logged(request):
-        return JSONResponse({"error": "unauthorized"}, status_code=401)
-
-    uid = get_uid(request)
-
-    db = get_db()
-    cur = db.cursor()
-
-    # удаляем ТОЛЬКО ссылку этого пользователя
-    cur.execute(
-        "DELETE FROM links WHERE code=? AND uid=?",
-        (code, uid)
-    )
-
-    db.commit()
-    db.close()
-
-    return JSONResponse({"ok": True})
-# =====================
 # STATUS (для автообновления)
 # =====================
 @app.get("/status")
