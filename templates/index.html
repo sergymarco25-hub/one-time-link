@@ -67,38 +67,14 @@ button:active {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-/* анимация клика */
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.04); }
-  100% { transform: scale(1); }
-}
-
-button.pulse {
-  animation: pulse 0.3s ease;
-}
-
-/* ===== КНОПКА ИСТОРИИ ===== */
-.toggle-history {
-  margin-top: 24px;
-  background: transparent;
-  color: #4f46e5;
-  font-weight: 600;
-  padding: 0;
-}
-
-#arrow {
-  display: inline-block;
-  transition: transform 0.2s ease;
-}
-
 /* ===== ИСТОРИЯ ===== */
 .history {
-  margin-top: 20px;
+  margin-top: 30px;
+  display: none;
 }
 
-.hidden {
-  display: none;
+.history.open {
+  display: block;
 }
 
 .history-item {
@@ -131,6 +107,13 @@ button.pulse {
   font-size: 12px;
   color: #6b7280;
 }
+
+/* ===== КНОПКА ИСТОРИИ ===== */
+.toggle-history {
+  margin-top: 20px;
+  background: #e5e7eb;
+  color: #111827;
+}
 </style>
 </head>
 
@@ -141,18 +124,8 @@ button.pulse {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input
-      class="main"
-      id="targetInput"
-      name="target_url"
-      placeholder="Вставьте ссылку"
-      required
-    >
-    <input
-      class="client"
-      name="client"
-      placeholder="Поле"
-    >
+    <input class="main" id="targetInput" name="target_url" placeholder="Вставьте ссылку" required>
+    <input class="client" name="client" placeholder="Поле">
   </div>
   <button type="submit">Сгенерировать</button>
 </form>
@@ -162,92 +135,85 @@ button.pulse {
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
-<button class="toggle-history" onclick="toggleHistory()">
-  История ссылок <span id="arrow">⌄</span>
-</button>
+<button class="toggle-history" onclick="toggleHistory()">▼ История ссылок</button>
 
-<div class="history hidden" id="historyBlock">
-{% for code, item in links.items() %}
-<div class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}">
-  <span class="status-dot
-    {% if item.state == 'NEW' %}status-new
-    {% elif item.state == 'OPENED' %}status-opened
-    {% elif item.state == 'USED' %}status-used
-    {% endif %}">
-  </span>
-
-  <div>
-    <div>
-      {{ request.base_url }}l/{{ code }}
-      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
-    </div>
-    <div class="history-time">Создана: {{ item.created_at }}</div>
-    {% if item.opened_at %}
-    <div class="history-time">Открыта: {{ item.opened_at }}</div>
-    {% endif %}
-  </div>
-</div>
-{% endfor %}
-</div>
+<div class="history" id="history"></div>
 </div>
 
 <script>
-/* ===== АНИМАЦИЯ КНОПОК ===== */
-document.querySelectorAll("button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    btn.classList.remove("pulse");
-    void btn.offsetWidth;
-    btn.classList.add("pulse");
-  });
-});
-
 /* ===== КОПИРОВАНИЕ ===== */
 function copyLink() {
   const input = document.getElementById("generatedLink");
   if (!input) return;
   input.select();
-  document.execCommand("copy");
+  navigator.clipboard.writeText(input.value);
+  input.style.background = "#dcfce7";
+  setTimeout(() => input.style.background = "", 300);
 }
 
-/* ===== ИСТОРИЯ (СОХРАНЕНИЕ СОСТОЯНИЯ) ===== */
+/* ===== ИСТОРИЯ (LOCALSTORAGE) ===== */
+const HISTORY_KEY = "user_link_history";
+
+function loadHistory() {
+  return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]");
+}
+
+function saveHistory(data) {
+  localStorage.setItem(HISTORY_KEY, JSON.stringify(data));
+}
+
+function addToHistory(link, client) {
+  const history = loadHistory();
+  history.unshift({
+    link,
+    client,
+    time: new Date().toLocaleString("ru-RU")
+  });
+  saveHistory(history);
+}
+
+function renderHistory() {
+  const historyEl = document.getElementById("history");
+  const history = loadHistory();
+  historyEl.innerHTML = "";
+
+  history.forEach(item => {
+    const div = document.createElement("div");
+    div.className = "history-item row-active";
+    div.innerHTML = `
+      <span class="status-dot status-opened"></span>
+      <div>
+        <div>${item.link} ${item.client ? "— <b>"+item.client+"</b>" : ""}</div>
+        <div class="history-time">${item.time}</div>
+      </div>
+    `;
+    historyEl.appendChild(div);
+  });
+}
+
+/* ===== СОХРАНЕНИЕ ССЫЛКИ ===== */
+{% if link %}
+addToHistory("{{ link }}", "{{ request.cookies.get('client','') }}");
+{% endif %}
+
+renderHistory();
+
+/* ===== TOGGLE ===== */
 function toggleHistory() {
-  const block = document.getElementById("historyBlock");
-  const arrow = document.getElementById("arrow");
-
-  const isHidden = block.classList.contains("hidden");
-
-  if (isHidden) {
-    block.classList.remove("hidden");
-    arrow.style.transform = "rotate(180deg)";
-    sessionStorage.setItem("history_open", "1");
-  } else {
-    block.classList.add("hidden");
-    arrow.style.transform = "rotate(0deg)";
-    sessionStorage.setItem("history_open", "0");
-  }
+  document.getElementById("history").classList.toggle("open");
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  const block = document.getElementById("historyBlock");
-  const arrow = document.getElementById("arrow");
-
-  if (sessionStorage.getItem("history_open") === "1") {
-    block.classList.remove("hidden");
-    arrow.style.transform = "rotate(180deg)";
-  }
-
-  const target = sessionStorage.getItem("target_url");
-  if (target) {
-    document.getElementById("targetInput").value = target;
-  }
-});
-
-document.getElementById("targetInput")?.addEventListener("input", e => {
-  sessionStorage.setItem("target_url", e.target.value);
-});
+  
+  /* ===== СОХРАНЕНИЕ ПОЛЯ ВКЛАДКИ ===== */
+const targetInput = document.getElementById("targetInput");
+if (targetInput) {
+  const saved = sessionStorage.getItem("target_url");
+  if (saved) targetInput.value = saved;
+  targetInput.addEventListener("input", () => {
+    sessionStorage.setItem("target_url", targetInput.value);
+  });
+}
 </script>
 
 </body>
 </html>
-
 
