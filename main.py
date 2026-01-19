@@ -47,14 +47,12 @@ def init_db():
     try:
         cur.execute("ALTER TABLE links ADD COLUMN uid TEXT")
     except sqlite3.OperationalError:
-        # колонка уже существует — это нормально
-        pass
-
+        
     cur.execute("""
-    CREATE TABLE IF NOT EXISTS sessions (
-        sid TEXT PRIMARY KEY
-    )
-    """)
+CREATE TABLE IF NOT EXISTS sessions (
+    sid TEXT PRIMARY KEY
+)
+""")
 
     db.commit()
     db.close()
@@ -72,6 +70,7 @@ def get_uid(request: Request) -> str:
 # =====================
 # AUTH
 # =====================
+
 def is_logged(request: Request) -> bool:
     sid = request.cookies.get("sid")
     if not sid:
@@ -85,14 +84,19 @@ def is_logged(request: Request) -> bool:
     return ok
 
 
-def get_current_user(request: Request) -> str | None:
-    return request.cookies.get("user")
+def get_uid(request: Request) -> str:
+    uid = request.cookies.get("uid")
     if not uid:
         uid = secrets.token_urlsafe(12)
     return uid
 
+
 @app.post("/login")
-def login(request: Request, username: str = Form(...), password: str = Form(...)):
+def login(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...)
+):
     if username not in ADMINS or ADMINS[username] != password:
         return templates.TemplateResponse(
             "login.html",
@@ -104,7 +108,10 @@ def login(request: Request, username: str = Form(...), password: str = Form(...)
     uid = get_uid(request)
 
     db = get_db()
-    db.execute("INSERT OR IGNORE INTO sessions (sid) VALUES (?)", (sid,))
+    db.execute(
+        "INSERT OR IGNORE INTO sessions (sid) VALUES (?)",
+        (sid,)
+    )
     db.commit()
     db.close()
 
