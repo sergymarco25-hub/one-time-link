@@ -20,37 +20,6 @@ body {
   box-shadow: 0 10px 30px rgba(0,0,0,.08);
 }
 
-/* кнопки */
-button {
-  transition: transform 0.12s ease, box-shadow 0.12s ease;
-}
-
-button:active {
-  transform: scale(0.96);
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15) inset;
-}
-
-/* анимация клика */
-@keyframes pulse {
-  0% { transform: scale(1); }
-  50% { transform: scale(1.04); }
-  100% { transform: scale(1); }
-}
-
-button.pulse {
-  animation: pulse 0.3s ease;
-}
-</style>
-
-.container {
-  max-width: 720px;
-  margin: 60px auto;
-  background: #fff;
-  padding: 32px;
-  border-radius: 14px;
-  box-shadow: 0 10px 30px rgba(0,0,0,.08);
-}
-
 h1 {
   margin-top: 0;
   font-size: 22px;
@@ -84,29 +53,38 @@ button {
   background: #4f46e5;
   color: #fff;
   cursor: pointer;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+
+button:active {
+  transform: scale(0.96);
+  box-shadow: inset 0 4px 10px rgba(0,0,0,.15);
 }
 
 .copy-btn {
   background: linear-gradient(135deg, #16a34a, #22c55e);
 }
 
-.history {
-  margin-top: 30px;
+/* pulse */
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.04); }
+  100% { transform: scale(1); }
 }
+button.pulse { animation: pulse .3s ease; }
+
+.history { margin-top: 30px; }
 
 .history-item {
   display: flex;
-  align-items: flex-start;
   padding: 10px;
   border-radius: 8px;
   margin-bottom: 8px;
 }
 
-/* 🔥 АКТИВНАЯ СТРОКА (OPENED или USED) */
 .row-active {
-  background-color: #ecfdf5 !important;
-  border-left: 4px solid #22c55e !important;
-  padding-left: 10px;
+  background: #ecfdf5;
+  border-left: 4px solid #22c55e;
 }
 
 .status-dot {
@@ -117,9 +95,9 @@ button {
   margin-top: 6px;
 }
 
-.status-new { background: #facc15; }    /* жёлтая */
-.status-opened { background: #22c55e; } /* зелёная */
-.status-used { background: #ef4444; }   /* красная */
+.status-new { background: #facc15; }
+.status-opened { background: #22c55e; }
+.status-used { background: #ef4444; }
 
 .history-time {
   font-size: 12px;
@@ -135,21 +113,9 @@ button {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input
-      class="main"
-      id="targetInput"
-      name="target_url"
-      placeholder="Вставьте ссылку"
-      required
-    >
-
-    <input
-      class="client"
-      name="client"
-      placeholder="Поле"
-    >
+    <input class="main" id="targetInput" name="target_url" placeholder="Вставьте ссылку" required>
+    <input class="client" name="client" placeholder="Поле">
   </div>
-
   <button type="submit">Сгенерировать</button>
 </form>
 
@@ -160,149 +126,64 @@ button {
 
 <div class="history">
 {% for code, item in links.items() %}
-<div class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}">
-
+<div class="history-item {% if item.state != 'NEW' %}row-active{% endif %}">
   <span class="status-dot
     {% if item.state == 'NEW' %}status-new
     {% elif item.state == 'OPENED' %}status-opened
-    {% elif item.state == 'USED' %}status-used
-    {% endif %}">
+    {% else %}status-used{% endif %}">
   </span>
-
   <div>
-    <div>
-      {{ request.base_url }}l/{{ code }}
-      {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
-    </div>
-
-    <div class="history-time">
-      Создана: {{ item.created_at }}
-    </div>
-
+    <div>{{ request.base_url }}l/{{ code }}{% if item.client %} — <b>{{ item.client }}</b>{% endif %}</div>
+    <div class="history-time">Создана: {{ item.created_at }}</div>
     {% if item.opened_at %}
-    <div class="history-time">
-      Открыта: {{ item.opened_at }}
-    </div>
+      <div class="history-time">Открыта: {{ item.opened_at }}</div>
     {% endif %}
   </div>
-
 </div>
 {% endfor %}
 </div>
-
 </div>
 
 <script>
-function copyLink() {
-  const i = document.getElementById("generatedLink");
-  i.select();
-  document.execCommand("copy");
-}
-
-/* 🔁 Поднимаем активные (зелёные) ссылки вверх */
-document.addEventListener("DOMContentLoaded", () => {
-  const history = document.querySelector(".history");
-  if (!history) return;
-
-  const items = Array.from(history.querySelectorAll(".history-item"));
-
-  const active = items.filter(i => i.classList.contains("row-active"));
-  const inactive = items.filter(i => !i.classList.contains("row-active"));
-
-  // Очищаем контейнер
-  history.innerHTML = "";
-
-  // Сначала активные (в том порядке, как пришли)
-  active.forEach(i => history.appendChild(i));
-
-  // Потом остальные
-  inactive.forEach(i => history.appendChild(i));
+// анимация кнопок
+document.querySelectorAll("button").forEach(btn => {
+  btn.addEventListener("click", () => {
+    btn.classList.remove("pulse");
+    void btn.offsetWidth;
+    btn.classList.add("pulse");
+  });
 });
-</script>
-<script>
+
+// копирование
 function copyLink() {
   const input = document.getElementById("generatedLink");
+  if (!input) return;
   input.select();
-  input.setSelectionRange(0, 99999);
-  navigator.clipboard.writeText(input.value);
+  document.execCommand("copy");
+  input.style.background = "#dcfce7";
+  setTimeout(() => input.style.background = "", 300);
 }
 
-/* сохраняем ссылку ТОЛЬКО В ЭТОЙ ВКЛАДКЕ */
-document.addEventListener("DOMContentLoaded", () => {
-  const saved = localStorage.getItem("generated_link");
-  if (saved) {
-    document.getElementById("generatedLink").value = saved;
-  }
-});
-
-/* перехватываем submit формы */
-document.querySelector("form").addEventListener("submit", () => {
-  setTimeout(() => {
-    const input = document.getElementById("generatedLink");
-    if (input && input.value) {
-      localStorage.setItem("generated_link", input.value);
-    }
-  }, 500);
-});
-</script>
-  <script>
-/* ========== СОХРАНЕНИЕ ССЫЛКИ В РАМКАХ ВКЛАДКИ ========== */
-
-// если сервер вернул новую ссылку — сохраняем её
+// sessionStorage — ОДНА ВКЛАДКА
 {% if link %}
 sessionStorage.setItem("generatedLink", "{{ link }}");
 {% endif %}
 
-// при загрузке страницы — восстанавливаем ссылку ТОЛЬКО для этой вкладки
-const savedLink = sessionStorage.getItem("generatedLink");
-if (savedLink) {
-  const field = document.getElementById("generatedLink");
-  if (field) {
-    field.value = savedLink;
-  }
+const saved = sessionStorage.getItem("generatedLink");
+if (saved && document.getElementById("generatedLink")) {
+  document.getElementById("generatedLink").value = saved;
 }
 
-/* ========== КОПИРОВАНИЕ ========== */
-function copyLink() {
-  const input = document.getElementById("generatedLink");
-  if (!input || !input.value) return;
-
-  input.select();
-  document.execCommand("copy");
-
-  // лёгкая анимация
-  input.style.background = "#dcfce7";
-  setTimeout(() => {
-    input.style.background = "";
-  }, 300);
-}
-    // ===== СОХРАНЕНИЕ ПОЛЯ ГЕНЕРАЦИИ (target_url) ДЛЯ КАЖДОЙ ВКЛАДКИ =====
-const targetInput = document.querySelector('input[name="target_url"]');
-
-if (targetInput) {
-  // восстановление при перезагрузке
-  const savedTarget = sessionStorage.getItem("target_url");
-  if (savedTarget) {
-    targetInput.value = savedTarget;
-  }
-
-  // сохранение при вводе
-  targetInput.addEventListener("input", () => {
-    sessionStorage.setItem("target_url", targetInput.value);
+const target = document.getElementById("targetInput");
+if (target) {
+  const t = sessionStorage.getItem("target_url");
+  if (t) target.value = t;
+  target.addEventListener("input", () => {
+    sessionStorage.setItem("target_url", target.value);
   });
 }
 </script>
-  <script>
-document.querySelectorAll("button").forEach(btn => {
-  btn.addEventListener("click", () => {
-    btn.classList.remove("pulse");
-    void btn.offsetWidth; // перезапуск анимации
-    btn.classList.add("pulse");
-  });
-});
-</script>
-</body>
-</html>
+
 </body>
 </html>
 
