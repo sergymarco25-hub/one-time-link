@@ -63,7 +63,7 @@ init_db()
 def get_uid(request: Request):
     uid = request.cookies.get("uid")
     if not uid:
-        uid = secrets.token_urlsafe(16)
+        uid = secrets.token_urlsafe(12)
     return uid
 
 # =====================
