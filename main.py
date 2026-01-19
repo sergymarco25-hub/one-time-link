@@ -29,6 +29,7 @@ def init_db():
     db = get_db()
     cur = db.cursor()
 
+    # основная таблица
     cur.execute("""
     CREATE TABLE IF NOT EXISTS links (
         code TEXT PRIMARY KEY,
@@ -36,9 +37,17 @@ def init_db():
         state TEXT,
         created_at TEXT,
         opened_at TEXT,
-        client TEXT
+        client TEXT,
+        uid TEXT
     )
     """)
+
+    # если таблица была создана раньше — добавляем uid
+    try:
+        cur.execute("ALTER TABLE links ADD COLUMN uid TEXT")
+    except sqlite3.OperationalError:
+        # колонка уже существует — это нормально
+        pass
 
     cur.execute("""
     CREATE TABLE IF NOT EXISTS sessions (
@@ -50,6 +59,12 @@ def init_db():
     db.close()
 
 init_db()
+# ===== UID пользователя =====
+def get_uid(request: Request):
+    uid = request.cookies.get("uid")
+    if not uid:
+        uid = secrets.token_urlsafe(16)
+    return uid
 
 # =====================
 # AUTH
@@ -150,27 +165,52 @@ def create(
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
+    # ✅ UID пользователя (один на браузер)
+    uid = get_uid(request)
+
+    # ✅ код ссылки
     code = secrets.token_urlsafe(3)
+
+    # ✅ время (Москва)
     created_at = datetime.now(
         ZoneInfo("Europe/Moscow")
     ).strftime("%d.%m.%Y %H:%M:%S")
 
+    # ✅ запись в БД
     db = get_db()
     db.execute(
-        "INSERT INTO links VALUES (?, ?, ?, ?, ?, ?)",
-        (code, target_url, "NEW", created_at, None, client.strip())
+        """
+        INSERT INTO links (code, url, state, created_at, opened_at, client, uid)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+        """,
+        (
+            code,
+            target_url,
+            "NEW",
+            created_at,
+            None,
+            client.strip(),
+            uid
+        )
     )
     db.commit()
     db.close()
 
+    # ✅ ссылка
     base = str(request.base_url).rstrip("/")
     one_time_link = f"{base}/l/{code}"
 
+    # ✅ ответ
     resp = RedirectResponse("/", status_code=302)
+
+    # сохраняем uid (ВАЖНО)
+    resp.set_cookie("uid", uid, max_age=60 * 60 * 24 * 365)
+
+    # сохраняем последнюю ссылку (как раньше)
     resp.set_cookie("last_link", one_time_link, max_age=3600)
     resp.set_cookie("last_target", target_url, max_age=3600)
-    return resp
 
+    return resp
 # =====================
 # STATUS (для автообновления)
 # =====================
