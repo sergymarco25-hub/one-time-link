@@ -102,12 +102,11 @@ button:active {
   padding-left: 10px;
 }
 
-/* ===== ARCHIVE (ТУСКЛО) ===== */
 .archived {
   opacity: 0.35;
 }
 
-/* ===== STATUS DOT ===== */
+/* ===== STATUS ===== */
 .status-dot {
   width: 10px;
   height: 10px;
@@ -125,14 +124,18 @@ button:active {
   color: #6b7280;
 }
 
-/* ===== EYE BUTTON ===== */
+/* ===== TEXT + EYE ===== */
+.text {
+  flex: 1;
+}
+
 .eye-btn {
   background: none;
   border: none;
   cursor: pointer;
-  margin-left: auto;
-  font-size: 16px;
-  opacity: 0.4;
+  font-size: 18px;
+  margin-left: 8px;
+  opacity: 0.5;
 }
 
 .eye-btn:hover {
@@ -148,18 +151,8 @@ button:active {
 
 <form method="post" action="/create">
   <div class="form-row">
-    <input
-      class="main"
-      id="targetInput"
-      name="target_url"
-      placeholder="Вставьте ссылку"
-      required
-    >
-    <input
-      class="client"
-      name="client"
-      placeholder="Поле"
-    >
+    <input class="main" id="targetInput" name="target_url" placeholder="Вставьте ссылку" required>
+    <input class="client" name="client" placeholder="Поле">
   </div>
   <button type="submit">Сгенерировать</button>
 </form>
@@ -174,10 +167,11 @@ button:active {
 
   <div class="history" id="history">
     {% for code, item in links.items() %}
-    <div
-      class="history-item {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}"
+    <div class="history-item
+      {% if item.state == 'OPENED' or item.state == 'USED' %}row-active{% endif %}"
       data-code="{{ code }}"
     >
+
       <span class="status-dot
         {% if item.state == 'NEW' %}status-new
         {% elif item.state == 'OPENED' %}status-opened
@@ -185,7 +179,7 @@ button:active {
         {% endif %}">
       </span>
 
-      <div>
+      <div class="text">
         <div>
           {{ request.base_url }}l/{{ code }}
           {% if item.client %} — <b>{{ item.client }}</b>{% endif %}
@@ -201,6 +195,7 @@ button:active {
     {% endfor %}
   </div>
 </div>
+
 </div>
 
 <script>
@@ -213,14 +208,33 @@ function copyLink() {
   setTimeout(() => input.style.background = "", 300);
 }
 
-  /* ===== HISTORY TOGGLE ===== */
+/* ===== HISTORY TOGGLE ===== */
 function toggleHistory() {
   const h = document.getElementById("history");
   h.classList.toggle("open");
   localStorage.setItem("history_open", h.classList.contains("open"));
 }
 
-/* ===== ARCHIVE TOGGLE ===== */
+document.addEventListener("DOMContentLoaded", () => {
+  if (localStorage.getItem("history_open") === "true") {
+    document.getElementById("history").classList.add("open");
+  }
+
+  const archived = JSON.parse(localStorage.getItem("archived_links") || "{}");
+  document.querySelectorAll(".history-item").forEach(row => {
+    const code = row.dataset.code;
+    if (archived[code]) row.classList.add("archived");
+  });
+
+  const target = sessionStorage.getItem("target_url");
+  if (target) document.getElementById("targetInput").value = target;
+});
+
+document.getElementById("targetInput").addEventListener("input", e => {
+  sessionStorage.setItem("target_url", e.target.value);
+});
+
+/* ===== ARCHIVE (EYE) ===== */
 function toggleArchive(code) {
   const row = document.querySelector(`[data-code="${code}"]`);
   if (!row) return;
@@ -231,30 +245,6 @@ function toggleArchive(code) {
   archived[code] = row.classList.contains("archived");
   localStorage.setItem("archived_links", JSON.stringify(archived));
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  // restore history open state
-  if (localStorage.getItem("history_open") === "true") {
-    document.getElementById("history").classList.add("open");
-  }
-
-  // restore archived rows
-  const archived = JSON.parse(localStorage.getItem("archived_links") || "{}");
-  Object.keys(archived).forEach(code => {
-    if (archived[code]) {
-      const row = document.querySelector(`[data-code="${code}"]`);
-      if (row) row.classList.add("archived");
-    }
-  });
-
-  // restore input per tab
-  const target = sessionStorage.getItem("target_url");
-  if (target) document.getElementById("targetInput").value = target;
-});
-
-document.getElementById("targetInput").addEventListener("input", e => {
-  sessionStorage.setItem("target_url", e.target.value);
-});
 </script>
 
 </body>
