@@ -124,7 +124,10 @@ button.pulse { animation: pulse .3s ease; }
 <button class="copy-btn" onclick="copyLink()">Скопировать</button>
 {% endif %}
 
-<div class="history">
+<div class="history hidden" id="historyBlock">
+  <button class="toggle-history" onclick="toggleHistory()">
+  История ссылок <span id="arrow">⌄</span>
+</button>
 {% for code, item in links.items() %}
 <div class="history-item {% if item.state != 'NEW' %}row-active{% endif %}">
   <span class="status-dot
@@ -182,6 +185,35 @@ if (target) {
     sessionStorage.setItem("target_url", target.value);
   });
 }
+<script>
+function toggleHistory() {
+  const block = document.getElementById("historyBlock");
+  const arrow = document.getElementById("arrow");
+
+  const isHidden = block.classList.contains("hidden");
+
+  if (isHidden) {
+    block.classList.remove("hidden");
+    arrow.style.transform = "rotate(180deg)";
+    sessionStorage.setItem("history_open", "1");
+  } else {
+    block.classList.add("hidden");
+    arrow.style.transform = "rotate(0deg)";
+    sessionStorage.setItem("history_open", "0");
+  }
+}
+
+/* восстановление состояния */
+document.addEventListener("DOMContentLoaded", () => {
+  const block = document.getElementById("historyBlock");
+  const arrow = document.getElementById("arrow");
+
+  const saved = sessionStorage.getItem("history_open");
+  if (saved === "1") {
+    block.classList.remove("hidden");
+    arrow.style.transform = "rotate(180deg)";
+  }
+});
 </script>
 
 </body>
