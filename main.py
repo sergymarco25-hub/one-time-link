@@ -104,24 +104,19 @@ def home(request: Request):
     if not is_logged(request):
         return RedirectResponse("/login", status_code=302)
 
-    db = get_db()
-    cur = db.cursor()
-    cur.execute("""
-        SELECT code, url, state, created_at, opened_at, client
-        FROM links
-        ORDER BY created_at DESC
-    """)
-    rows = cur.fetchall()
-    db.close()
+    @app.get("/", response_class=HTMLResponse)
+def home(request: Request):
+    if not is_logged(request):
+        return RedirectResponse("/login", status_code=302)
 
-    links = {
-        code: {
-            "url": url,
-            "state": state,
-            "created_at": created_at,
-            "opened_at": opened_at,
-            "client": client
+    return templates.TemplateResponse(
+        "index.html",
+        {
+            "request": request,
+            "link": request.cookies.get("last_link", ""),
+            "target": request.cookies.get("last_target", "")
         }
+    )
         for code, url, state, created_at, opened_at, client in rows
     }
 
@@ -129,7 +124,6 @@ def home(request: Request):
         "index.html",
         {
             "request": request,
-            "links": links,
             "link": request.cookies.get("last_link", ""),
             "target": request.cookies.get("last_target", "")
         }
